@@ -229,6 +229,12 @@ secrets/
 raw/
 __pycache__/
 
+# Daily job output stays off the site repo. Published JSON is rsynced
+# from this directory on the server; it is not source.
+/publish/
+/logs/
+web/data/
+
 # Trained sklearn blobs and generated feature tables stay out of the repo
 *.joblib
 data/*.csv.gz

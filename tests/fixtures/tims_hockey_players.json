@@ -1,0 +1,54 @@
+{
+  "data": {
+    "me": {
+      "hockeyPlayers": {
+        "code": "200",
+        "data": {
+          "contestId": "contest-fixture",
+          "type": "daily",
+          "expirationTime": "2026-11-15T05:00:00.000Z",
+          "games": [
+            {
+              "startTime": "2026-11-14T23:00:00.000Z",
+              "started": false,
+              "teams": {
+                "home": {"id": "t-edm", "name": "Oilers", "city": "Edmonton", "abbr": "EDM"},
+                "away": {"id": "t-sj", "name": "Sharks", "city": "San Jose", "abbr": "SJ"}
+              }
+            },
+            {
+              "startTime": "2026-11-15T00:00:00.000Z",
+              "started": false,
+              "teams": {
+                "home": {"id": "t-nj", "name": "Devils", "city": "New Jersey", "abbr": "NJ"},
+                "away": {"id": "t-tb", "name": "Lightning", "city": "Tampa Bay", "abbr": "TB"}
+              }
+            }
+          ],
+          "sets": [
+            {
+              "id": "set-1",
+              "players": [
+                {"id": "p-mcd", "firstName": "Connor", "lastName": "McDavid", "number": "97", "position": "C", "teamId": "t-edm", "image": "https://example.invalid/mcd.png"},
+                {"id": "p-dra", "firstName": "Leon", "lastName": "Draisaitl", "number": 29, "position": "C", "teamId": "t-edm"}
+              ]
+            },
+            {
+              "id": "set-2",
+              "players": [
+                {"id": "p-mar", "firstName": "Mitch", "lastName": "Marner", "number": 16, "position": "RW", "teamId": "t-sj"}
+              ]
+            },
+            {
+              "id": "set-3",
+              "players": [
+                {"id": "p-hug", "firstName": "Jack", "lastName": "Hughes", "number": 86, "position": "C", "teamId": "t-nj"},
+                {"id": "p-hed", "firstName": "Victor", "lastName": "Hedman", "number": 77, "position": "RD", "teamId": "t-tb"}
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

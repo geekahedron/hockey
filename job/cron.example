@@ -1,0 +1,13 @@
+# Tims Hockey Challenge daily job.
+# Install with: crontab -e  and paste the line below.
+# The clock is the server's local time. On a Toronto-timed host, 10:15 is
+# after the morning groups are usually posted and before most games.
+# One run grades every published day that is still pending, then scores today.
+#
+# Layout and the rsync target are documented in deploy/README.md.
+# TIMS_ENV points at a file outside the repo and outside public_html.
+# Do not move that file into the web root. The job never submits a pick.
+#
+# Create the log directory once: mkdir -p "$HOME/tims-hockey/logs"
+
+15 10 * * * TIMS_ENV=$HOME/tims-hockey/secrets/tims.env $HOME/tims-venv/bin/python $HOME/tims-hockey/job/run_daily.py --publish $HOME/tims-hockey/publish --log $HOME/tims-hockey/logs/daily.log && rsync -a --delete $HOME/tims-hockey/publish/ $HOME/public_html/tools/hockey/data/

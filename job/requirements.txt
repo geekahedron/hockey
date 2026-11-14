@@ -1,0 +1,5 @@
+# The daily runner imports numpy (logistic_json) and pandas (features.py).
+# It does not load the joblib pipeline. The host venv at ~/tims-venv already
+# has these plus the research stack; pin the versions that venv was built with.
+numpy==2.0.2
+pandas==2.3.3

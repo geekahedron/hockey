@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tims Hockey Challenge · Geekahedron</title>
+<meta name="description" content="Today's three Tims Hockey Challenge groups, the chance each player scores, past slates, and a season tracker.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../">Geekahedron</a>
+  <h1>Tims Hockey Challenge</h1>
+  <p class="sub">Three groups a day. Each bar is the chance that player scores at least one non-shootout goal.</p>
+  <div class="page-modes">
+    <button type="button" class="ghost on" data-view="today" aria-pressed="true">Today</button>
+    <button type="button" class="ghost" data-view="past" aria-pressed="false">Past days</button>
+    <button type="button" class="ghost" data-view="season" aria-pressed="false">Season</button>
+    <label class="method">Method
+      <select id="method" aria-label="Scoring method"></select>
+    </label>
+  </div>
+</header>
+<main>
+  <p id="banner" class="warn" hidden role="status"></p>
+  <section id="view-today" aria-live="polite"></section>
+  <section id="view-past" hidden></section>
+  <section id="view-season" hidden></section>
+</main>
+<p class="foot">Probabilities are this site's model, trained on NHL box scores and updated once a day. Not affiliated with Tim Hortons or the NHL.</p>
+<script src="app.js"></script>
+</body>
+</html>

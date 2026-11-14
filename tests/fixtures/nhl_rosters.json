@@ -1,0 +1,31 @@
+{
+  "EDM": {
+    "forwards": [
+      {"id": 8478402, "sweaterNumber": 97, "firstName": {"default": "Connor"}, "lastName": {"default": "McDavid"}},
+      {"id": 8477934, "sweaterNumber": 29, "firstName": {"default": "Leon"}, "lastName": {"default": "Draisaitl"}}
+    ],
+    "defensemen": [],
+    "goalies": []
+  },
+  "SJS": {
+    "forwards": [
+      {"id": 8478483, "sweaterNumber": 16, "firstName": {"default": "Mitchell"}, "lastName": {"default": "Marner"}}
+    ],
+    "defensemen": [],
+    "goalies": []
+  },
+  "NJD": {
+    "forwards": [
+      {"id": 8481559, "sweaterNumber": 86, "firstName": {"default": "Jack"}, "lastName": {"default": "Hughes"}}
+    ],
+    "defensemen": [],
+    "goalies": []
+  },
+  "TBL": {
+    "forwards": [],
+    "defensemen": [
+      {"id": 8475167, "sweaterNumber": 77, "firstName": {"default": "Victor"}, "lastName": {"default": "Hedman"}}
+    ],
+    "goalies": []
+  }
+}
