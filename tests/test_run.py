@@ -168,19 +168,38 @@ def test_log_and_secrets_stay_out_of_the_publish_dir(tmp_path, monkeypatch):
         ])
 
     env_path = tmp_path / "tims.env"
-    env_path.write_text("TIMS_BEARER=%s\n" % CANARY)
+    env_path.write_text(
+        "TIMS_CLIENT_ID=app-client\nTIMS_COGNITO_ID=us-east-1:subject\n"
+        "TIMS_REFRESH_TOKEN=%s\n" % CANARY
+    )
     monkeypatch.setenv("TIMS_ENV", str(env_path))
+    yesterday = {"schema": 1, "date": "2026-11-13", "status": "graded", "groups": []}
+    (publish / "today.json").write_text(json.dumps(yesterday))
+    before = (publish / "today.json").read_text()
+
+    def transport(method, url, body, headers):
+        return 400, {"__type": "NotAuthorizedException", "message": "Refresh Token has been revoked"}
+
+    from job.groups import TimsGroupsSource
+    source = TimsGroupsSource(
+        env_path=str(env_path),
+        transport=transport,
+        roster_get=lambda url: {},
+        publish_dir=str(publish),
+    )
     log_path = tmp_path / "logs" / "daily.log"
     code = run([
         "--date", "2026-11-14",
         "--publish", str(publish),
         "--no-refresh",
         "--log", str(log_path),
-    ])
+    ], tims_source=source)
     assert code == 1
     text = log_path.read_text()
     assert CANARY not in text
-    assert "TODO" in text
+    assert "left unchanged" in text
+    assert (publish / "today.json").read_text() == before
+    assert not (publish / "days" / "2026-11-14.json").exists()
     for root, dirs, files in os.walk(str(publish)):
         for name in files:
             assert CANARY not in open(os.path.join(root, name)).read()

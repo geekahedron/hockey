@@ -59,9 +59,11 @@ One run:
    stored game up to today. Features are rebuilt from `raw/` when the slate
    is scored (`features.load`), not from a saved feature table.
 2. Loads today's groups. With `--groups FILE`, the file is local JSON. Without
-   it, `TimsGroupsSource` reads credentials from `$TIMS_ENV` and is the
-   adapter for `GET https://px-api.rbi.digital/hockeyprod/picks`. That GET is
-   not wired yet; the fetcher is being written elsewhere (`job/groups.py`).
+   it, `TimsGroupsSource` reads `$TIMS_ENV` and queries `HockeyPlayers` on
+   `https://use1-prod-th-gateway.rbictg.com/graphql`. The IdToken is minted
+   with Cognito `REFRESH_TOKEN_AUTH`. Each player is matched to an NHL id by
+   team abbreviation and jersey number (`NJ`/`TB`/`SJ`/`LA` map to
+   `NJD`/`TBL`/`SJS`/`LAK`). The old px-api host is not used.
 3. Scores every available player with `logistic_json.predict_proba`. The
    joblib pipeline is not loaded.
 4. Grades every published day whose games are now final. A non-shootout goal
@@ -110,16 +112,20 @@ you pass `--rescore`. A still-pending day is scored again, then graded.
 
 Credentials live only in the file named by `TIMS_ENV`, for example
 `~/tims-hockey/secrets/tims.env`. That file is outside the repo and outside
-`public_html`. `deploy/tims.env.example` shows the keys (`TIMS_BEARER` or
-`TIMS_COOKIE`). chmod 600.
+`public_html`. `deploy/tims.env.example` lists `TIMS_CLIENT_ID`,
+`TIMS_COGNITO_ID`, and `TIMS_REFRESH_TOKEN`. chmod 600.
 
 The job will not use a secrets file under `public_html` or inside the
 publish directory. It does not log credential values. The publisher rejects
 a document that contains a secret field. The log path is refused if it sits
 in the publish directory or under `public_html`.
 
-The picks client is read-only. It never submits a pick. Until the GET is
-wired, run with `--groups` and do not put that file on the web.
+The picks client is read-only. It sends the refresh call and the
+`HockeyPlayers` query, and nothing that submits a pick. It does not start
+a magic-link sign-in. If Cognito returns a new refresh token, that value is
+written back to the same secrets file. If the refresh token is rejected,
+the run logs the failure outside the web root and leaves yesterday's
+published JSON in place.
 
 ## Server layout and cron
 

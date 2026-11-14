@@ -71,19 +71,25 @@ The clock is the server's local time. 10:15 is a morning slot, after the
 day's groups are usually posted and before most games. One run is enough:
 the next morning grades last night and scores the new slate.
 
-Until the Tims GET is wired (`job/groups.py`), pass `--groups` with a
-normalized JSON file instead of relying on `TIMS_ENV`. The file format is
-in the root README. Do not point `--groups` at a file inside `public_html`.
+`TIMS_ENV` must be set for the live groups. `--groups FILE` still scores a
+local JSON file instead. Do not point `--groups` at a file inside
+`public_html`.
 
 Manual publish of the page itself, after a code change, is the three-file
 `cp` above. The cron does not copy HTML.
 
 ## Secrets
 
-* `TIMS_ENV` is a path. The file it names holds `TIMS_BEARER` or `TIMS_COOKIE`.
+* `TIMS_ENV` is a path. The file holds `TIMS_CLIENT_ID`, `TIMS_COGNITO_ID`,
+  and `TIMS_REFRESH_TOKEN` (see `deploy/tims.env.example`).
 * The runner will not start if that path is under `public_html` or inside
   the publish directory.
+* Each run mints an IdToken with `REFRESH_TOKEN_AUTH`. A new refresh token
+  in the Cognito response is written back to that same file, mode `0600`.
 * Credential values are not passed to the log, and the publisher rejects a
   document that contains a secret field.
-* The picks client is read-only. It does not submit a pick. The live GET is
-  still a TODO; see `job/groups.py`.
+* The client only sends `REFRESH_TOKEN_AUTH` and the `HockeyPlayers` query.
+  It does not submit a pick and it does not start a magic-link sign-in.
+* If the refresh token is rejected, the run logs the failure (the cron log
+  is `~/tims-hockey/logs/daily.log`, outside the web root) and leaves the
+  published JSON as it was.

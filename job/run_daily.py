@@ -92,7 +92,7 @@ def _needs_grade(day):
     return False
 
 
-def run(argv=None, get_json=None):
+def run(argv=None, get_json=None, tims_source=None):
     args = parse_args(argv)
     publish_dir = os.path.abspath(os.path.expanduser(args.publish))
     log = Log(args.log, publish_dir)
@@ -114,6 +114,8 @@ def run(argv=None, get_json=None):
         if rescore:
             if args.groups:
                 source = FileGroupsSource(args.groups)
+            elif tims_source is not None:
+                source = tims_source
             else:
                 source = TimsGroupsSource(publish_dir=publish_dir)
             groups = source.fetch(when)
@@ -146,7 +148,12 @@ def run(argv=None, get_json=None):
                     publish_dir, saved, as_today=(saved["date"] == when.isoformat())
                 )
                 log("graded %s -> %s" % (saved["date"], saved["status"]))
-    except (GroupsSourceError, RefreshError, PublishError, ScoreError, OSError) as exc:
+    except GroupsSourceError as exc:
+        # The slate was not written. Yesterday's JSON stays on disk.
+        log("groups: %s" % exc)
+        log("published JSON left unchanged")
+        return 1
+    except (RefreshError, PublishError, ScoreError, OSError) as exc:
         log("error: %s" % exc)
         return 1
     except Exception as exc:
