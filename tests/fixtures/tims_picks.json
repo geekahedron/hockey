@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-14",
+  "pickGroups": [
+    {
+      "groupNumber": 1,
+      "players": [
+        {
+          "nhlPlayerId": 8478402,
+          "firstName": "Connor",
+          "lastName": "McDavid",
+          "teamAbbrev": "EDM",
+          "opponentAbbrev": "SJS",
+          "homeAway": "HOME",
+          "position": "C",
+          "scratched": false
+        },
+        {
+          "nhlPlayerId": 8477934,
+          "firstName": "Leon",
+          "lastName": "Draisaitl",
+          "teamAbbrev": "EDM",
+          "opponentAbbrev": "SJS",
+          "homeAway": "HOME",
+          "position": "C",
+          "scratched": true
+        }
+      ]
+    },
+    {
+      "groupNumber": 2,
+      "players": [
+        {
+          "nhlPlayerId": 8479318,
+          "firstName": "Auston",
+          "lastName": "Matthews",
+          "teamAbbrev": "TOR",
+          "opponentAbbrev": "CBJ",
+          "homeAway": "AWAY",
+          "position": "C"
+        }
+      ]
+    },
+    {
+      "groupNumber": 3,
+      "players": [
+        {
+          "nhlPlayerId": 8480069,
+          "firstName": "Cale",
+          "lastName": "Makar",
+          "teamAbbrev": "COL",
+          "opponentAbbrev": "ANA",
+          "homeAway": "HOME",
+          "position": "D"
+        }
+      ]
+    }
+  ]
+}

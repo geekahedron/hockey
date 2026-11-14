@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "updated": "2026-11-14T14:35:34+00:00",
+  "today": "2026-11-14",
+  "season": "2026-27",
+  "days": [
+    {
+      "date": "2026-11-14",
+      "status": "pending",
+      "groups": 3,
+      "picks": 0,
+      "hits": null
+    },
+    {
+      "date": "2026-11-13",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 1.0
+    },
+    {
+      "date": "2026-11-12",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 2.0
+    },
+    {
+      "date": "2026-11-11",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 0.0
+    },
+    {
+      "date": "2026-11-10",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 2.0
+    },
+    {
+      "date": "2026-11-09",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 1.0
+    },
+    {
+      "date": "2026-11-08",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 1.0
+    },
+    {
+      "date": "2026-11-07",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 2.0
+    },
+    {
+      "date": "2026-11-06",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 0.0
+    },
+    {
+      "date": "2026-11-05",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 2.0
+    },
+    {
+      "date": "2026-11-04",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 1.0
+    },
+    {
+      "date": "2026-11-03",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 1.0
+    },
+    {
+      "date": "2026-11-02",
+      "status": "graded",
+      "groups": 3,
+      "picks": 3,
+      "hits": 2.0
+    }
+  ]
+}

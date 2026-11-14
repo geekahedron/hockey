@@ -1,0 +1,427 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "status": "graded",
+  "generated_at": "2026-11-14T10:15:00-05:00",
+  "season": "2026-27",
+  "model": "logistic",
+  "methods": [
+    {
+      "id": "model",
+      "label": "Model",
+      "description": "Logistic regression on shrunk NHL rates. Probability of at least one non-shootout goal."
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "status": "graded",
+      "players": [
+        {
+          "pid": 8478001,
+          "name": "Connor McDavid",
+          "team": "EDM",
+          "opp": "SJS",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.37
+          },
+          "pick": true,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478002,
+          "name": "Nathan MacKinnon",
+          "team": "COL",
+          "opp": "ANA",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.343
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478003,
+          "name": "Auston Matthews",
+          "team": "TOR",
+          "opp": "CBJ",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.316
+          },
+          "pick": false,
+          "scored": 1,
+          "goals": 1
+        },
+        {
+          "pid": 8478004,
+          "name": "Kirill Kaprizov",
+          "team": "MIN",
+          "opp": "NSH",
+          "home": 1,
+          "position": "L",
+          "probability": {
+            "model": 0.289
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478005,
+          "name": "Nikita Kucherov",
+          "team": "TBL",
+          "opp": "OTT",
+          "home": 0,
+          "position": "R",
+          "probability": {
+            "model": 0.262
+          },
+          "pick": false,
+          "scored": 1,
+          "goals": 1
+        },
+        {
+          "pid": 8478006,
+          "name": "David Pastrnak",
+          "team": "BOS",
+          "opp": "PHI",
+          "home": 1,
+          "position": "R",
+          "probability": {
+            "model": 0.235
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478007,
+          "name": "Jason Robertson",
+          "team": "DAL",
+          "opp": "STL",
+          "home": 1,
+          "position": "L",
+          "probability": {
+            "model": 0.208
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478008,
+          "name": "Sam Reinhart",
+          "team": "FLA",
+          "opp": "CAR",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.181
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        }
+      ],
+      "pick": {
+        "pids": [
+          8478001
+        ],
+        "name": "Connor McDavid",
+        "team": "EDM",
+        "opp": "SJS",
+        "home": 1,
+        "probability": 0.37
+      },
+      "hit": 0.0,
+      "top3_hits": 1,
+      "random": 0.25,
+      "n": 8,
+      "scorers": [
+        "Auston Matthews",
+        "Nikita Kucherov"
+      ]
+    },
+    {
+      "id": 2,
+      "status": "graded",
+      "players": [
+        {
+          "pid": 8478102,
+          "name": "William Nylander",
+          "team": "TOR",
+          "opp": "CBJ",
+          "home": 1,
+          "position": "R",
+          "probability": {
+            "model": 0.335
+          },
+          "pick": true,
+          "scored": 1,
+          "goals": 1
+        },
+        {
+          "pid": 8478103,
+          "name": "Mikko Rantanen",
+          "team": "COL",
+          "opp": "ANA",
+          "home": 1,
+          "position": "R",
+          "probability": {
+            "model": 0.308
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478104,
+          "name": "Brayden Point",
+          "team": "TBL",
+          "opp": "OTT",
+          "home": 0,
+          "position": "C",
+          "probability": {
+            "model": 0.281
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478105,
+          "name": "Jack Hughes",
+          "team": "NJD",
+          "opp": "NYR",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.254
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478106,
+          "name": "Matthew Tkachuk",
+          "team": "FLA",
+          "opp": "CAR",
+          "home": 1,
+          "position": "R",
+          "probability": {
+            "model": 0.227
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478107,
+          "name": "Kyle Connor",
+          "team": "WPG",
+          "opp": "VAN",
+          "home": 0,
+          "position": "L",
+          "probability": {
+            "model": 0.2
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478108,
+          "name": "Mark Scheifele",
+          "team": "WPG",
+          "opp": "VAN",
+          "home": 0,
+          "position": "C",
+          "probability": {
+            "model": 0.173
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478101,
+          "name": "Leon Draisaitl",
+          "team": "EDM",
+          "opp": "SJS",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.146
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        }
+      ],
+      "pick": {
+        "pids": [
+          8478102
+        ],
+        "name": "William Nylander",
+        "team": "TOR",
+        "opp": "CBJ",
+        "home": 1,
+        "probability": 0.335
+      },
+      "hit": 1.0,
+      "top3_hits": 1,
+      "random": 0.125,
+      "n": 8,
+      "scorers": [
+        "William Nylander"
+      ]
+    },
+    {
+      "id": 3,
+      "status": "graded",
+      "players": [
+        {
+          "pid": 8478203,
+          "name": "Aleksander Barkov",
+          "team": "FLA",
+          "opp": "CAR",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.3
+          },
+          "pick": true,
+          "scored": 1,
+          "goals": 1
+        },
+        {
+          "pid": 8478204,
+          "name": "Cale Makar",
+          "team": "COL",
+          "opp": "ANA",
+          "home": 1,
+          "position": "D",
+          "probability": {
+            "model": 0.273
+          },
+          "pick": false,
+          "scored": 1,
+          "goals": 1
+        },
+        {
+          "pid": 8478205,
+          "name": "Tim Stützle",
+          "team": "OTT",
+          "opp": "TBL",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.246
+          },
+          "pick": false,
+          "scored": 1,
+          "goals": 1
+        },
+        {
+          "pid": 8478206,
+          "name": "Mitch Marner",
+          "team": "TOR",
+          "opp": "CBJ",
+          "home": 1,
+          "position": "R",
+          "probability": {
+            "model": 0.219
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478207,
+          "name": "Evan Bouchard",
+          "team": "EDM",
+          "opp": "SJS",
+          "home": 1,
+          "position": "D",
+          "probability": {
+            "model": 0.192
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478208,
+          "name": "Morgan Rielly",
+          "team": "TOR",
+          "opp": "CBJ",
+          "home": 1,
+          "position": "D",
+          "probability": {
+            "model": 0.165
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478201,
+          "name": "Jack Eichel",
+          "team": "VGK",
+          "opp": "SEA",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.138
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        },
+        {
+          "pid": 8478202,
+          "name": "Sidney Crosby",
+          "team": "PIT",
+          "opp": "BUF",
+          "home": 1,
+          "position": "C",
+          "probability": {
+            "model": 0.111
+          },
+          "pick": false,
+          "scored": 0,
+          "goals": 0
+        }
+      ],
+      "pick": {
+        "pids": [
+          8478203
+        ],
+        "name": "Aleksander Barkov",
+        "team": "FLA",
+        "opp": "CAR",
+        "home": 1,
+        "probability": 0.3
+      },
+      "hit": 1.0,
+      "top3_hits": 3,
+      "random": 0.375,
+      "n": 8,
+      "scorers": [
+        "Aleksander Barkov",
+        "Cale Makar",
+        "Tim Stützle"
+      ]
+    }
+  ],
+  "skipped": [],
+  "graded_at": "2026-11-14T14:35:34+00:00"
+}
