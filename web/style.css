@@ -90,7 +90,8 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .swatch{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .swatch.model{background:var(--orange)}
 .swatch.random{background:var(--muted)}
-.swatch.dash{background:transparent;border-top:2px dashed var(--muted);height:0;width:16px}
+.swatch.dash{background:transparent;border-top:2px dashed var(--muted);height:0;width:22px;margin-right:6px}
+.swatch-line{width:36px;height:14px;margin-right:6px;vertical-align:middle;display:inline-block}
 .tablewrap{overflow-x:auto}
 table.data{width:100%;border-collapse:collapse;font-size:14px}
 table.data th,table.data td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
