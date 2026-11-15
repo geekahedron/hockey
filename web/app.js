@@ -516,10 +516,16 @@
     view.appendChild(renderGroups(day, "past"));
   }
 
-  var SERIES_COLORS = ["#ff8c1a", "#7eb6ff", "#6fd389"];
+  // Widest solid line first, then a dash, then dots. Markers nest the same way
+  // (circle, square, diamond) so a shared value still shows every series.
+  var SERIES_STYLES = [
+    {color: "#ff8c1a", width: 3.6, dash: null, marker: "circle", markerSize: 4.6},
+    {color: "#7eb6ff", width: 2.4, dash: "7 4", marker: "square", markerSize: 2.7},
+    {color: "#6fd389", width: 2.2, dash: "1.2 3.4", marker: "diamond", markerSize: 3.5}
+  ];
 
-  function seriesColor(index) {
-    return SERIES_COLORS[index % SERIES_COLORS.length];
+  function seriesStyle(index) {
+    return SERIES_STYLES[index % SERIES_STYLES.length];
   }
 
   function lineChart(spec) {
@@ -594,21 +600,59 @@
       });
       return cmd;
     }
+    function addMarker(shape, cx, cy, color, size) {
+      if (shape === "square") {
+        var side = size * 2;
+        svg.appendChild(el("rect", {
+          x: (cx - side / 2).toFixed(1),
+          y: (cy - side / 2).toFixed(1),
+          width: side.toFixed(1),
+          height: side.toFixed(1),
+          fill: color
+        }));
+        return;
+      }
+      if (shape === "diamond") {
+        svg.appendChild(el("polygon", {
+          points: [
+            [cx, cy - size],
+            [cx + size, cy],
+            [cx, cy + size],
+            [cx - size, cy]
+          ].map(function (pair) {
+            return pair[0].toFixed(1) + "," + pair[1].toFixed(1);
+          }).join(" "),
+          fill: color
+        }));
+        return;
+      }
+      svg.appendChild(el("circle", {
+        cx: cx.toFixed(1), cy: cy.toFixed(1), r: String(size), fill: color
+      }));
+    }
     if (baseline.values) {
       svg.appendChild(el("path", {
         d: path(baseline.values), fill: "none", stroke: "#9fb0cc",
-        "stroke-width": "2", "stroke-dasharray": "4 4"
+        "stroke-width": "2", "stroke-dasharray": "4 4",
+        "stroke-linecap": "round"
       }));
     }
+    // Thickest solid stroke first, so a later dash or dot leaves it visible.
     series.forEach(function (item) {
-      svg.appendChild(el("path", {
-        d: path(item.values), fill: "none", stroke: item.color, "stroke-width": "2.5"
-      }));
+      var style = item.style;
+      var attrs = {
+        d: path(item.values), fill: "none", stroke: style.color,
+        "stroke-width": String(style.width), "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+      };
+      if (style.dash) attrs["stroke-dasharray"] = style.dash;
+      svg.appendChild(el("path", attrs));
+    });
+    series.forEach(function (item) {
+      var style = item.style;
       (item.values || []).forEach(function (value, i) {
         if (typeof value !== "number") return;
-        svg.appendChild(el("circle", {
-          cx: x(i).toFixed(1), cy: y(value).toFixed(1), r: "3.2", fill: item.color
-        }));
+        addMarker(style.marker, x(i), y(value), style.color, style.markerSize);
       });
     });
     [0, Math.floor((dates.length - 1) / 2), dates.length - 1].forEach(function (i) {
@@ -641,7 +685,7 @@
       series: (block.series || []).map(function (item, index) {
         return {
           label: item.label,
-          color: seriesColor(index),
+          style: seriesStyle(index),
           values: mode === "hits" ? item.hits : item.hit_rate
         };
       }),
@@ -652,12 +696,49 @@
     };
   }
 
+  function legendMark(style) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 36 14");
+    svg.setAttribute("class", "swatch-line");
+    svg.setAttribute("aria-hidden", "true");
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    line.setAttribute("d", "M1 7 H35");
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", style.color);
+    line.setAttribute("stroke-width", String(Math.min(style.width, 3)));
+    line.setAttribute("stroke-linecap", "round");
+    if (style.dash) line.setAttribute("stroke-dasharray", style.dash);
+    svg.appendChild(line);
+    var color = style.color;
+    var mid = 18;
+    if (style.marker === "square") {
+      var side = 6;
+      var rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("x", String(mid - side / 2));
+      rect.setAttribute("y", String(7 - side / 2));
+      rect.setAttribute("width", String(side));
+      rect.setAttribute("height", String(side));
+      rect.setAttribute("fill", color);
+      svg.appendChild(rect);
+    } else if (style.marker === "diamond") {
+      var poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      poly.setAttribute("points", mid + ",2 " + (mid + 5) + ",7 " + mid + ",12 " + (mid - 5) + ",7");
+      poly.setAttribute("fill", color);
+      svg.appendChild(poly);
+    } else if (style.marker === "circle") {
+      var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", String(mid));
+      dot.setAttribute("cy", "7");
+      dot.setAttribute("r", "3.2");
+      dot.setAttribute("fill", color);
+      svg.appendChild(dot);
+    }
+    return svg;
+  }
+
   function chartLegend(block) {
     var bits = (block.series || []).map(function (item, index) {
-      return h("span", null,
-        h("i", {class: "swatch", style: "background:" + seriesColor(index)}),
-        item.label
-      );
+      return h("span", null, legendMark(seriesStyle(index)), item.label);
     });
     bits.push(h("span", null, h("i", {class: "swatch dash"}), "Random baseline"));
     return h("div", {class: "legend"}, bits);
