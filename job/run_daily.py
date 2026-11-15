@@ -12,6 +12,7 @@ A grade that is still pending is success: the slate is published either way.
 """
 import argparse
 import datetime as dt
+import json
 import os
 import sys
 import traceback
@@ -22,6 +23,14 @@ for _path in (_ROOT, _MODEL):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from job.clone_attach import (
+    BACKFILL_FROM,
+    CloneError,
+    cache_path,
+    load_cache,
+    model_snapshot,
+    save_cache,
+)
 from job.grade import apply_grade
 from job.groups import FileGroupsSource, GroupsSourceError, TimsGroupsSource
 from job.publish import PublishError, list_days, load_day, publish_day
@@ -79,6 +88,23 @@ def parse_args(argv):
     parser.add_argument("--no-refresh", action="store_true", help="Do not fetch NHL feeds")
     parser.add_argument("--no-grade", action="store_true", help="Do not grade finished games")
     parser.add_argument("--rescore", action="store_true", help="Score again even if this date is already graded")
+    parser.add_argument(
+        "--backfill-clones",
+        action="store_true",
+        help=(
+            "Add the two extra methods to published days from 2026-11-02. "
+            "Does not rescore the logistic model and does not need Tims credentials."
+        ),
+    )
+    parser.add_argument(
+        "--backfill-from",
+        default=BACKFILL_FROM,
+        help="First slate date for --backfill-clones (default 2026-11-02)",
+    )
+    parser.add_argument(
+        "--backfill-to",
+        help="Last slate date for --backfill-clones (default: every later published day)",
+    )
     parser.add_argument("--log", help="Append-only log file, outside the publish dir and the web root")
     return parser.parse_args(argv)
 
@@ -90,6 +116,74 @@ def _needs_grade(day):
         if group.get("status") != "graded":
             return True
     return False
+
+
+def _clone_fetcher(getter, raw_dir):
+    """Return ``fetch(date, players)`` backed by the public NHL stats API.
+
+    Previous seasons are cached under the raw directory, which is not published.
+    """
+    from clones import live_features
+
+    path = cache_path(raw_dir)
+    cache = load_cache(path)
+
+    def fetch(url):
+        payload = getter(url)
+        if payload is None:
+            raise CloneError("NHL feed failed")
+        return payload
+
+    def clone_fetch(date, players):
+        try:
+            return live_features.build(date, players, cache, fetch=fetch)
+        finally:
+            save_cache(path, cache)
+
+    return clone_fetch
+
+
+def backfill_clones(publish_dir, getter, raw_dir, log, start, end):
+    """Add clone columns to published days. Model probabilities and picks stay.
+
+    Hits for the extra methods are filled from the scored flags already on a
+    graded day. Pending days get the columns and a null hit.
+    """
+    from job.clone_attach import attach_day, players_for_fetch
+
+    clone_fetch = _clone_fetcher(getter, raw_dir)
+    today_date = None
+    today_path = os.path.join(publish_dir, "today.json")
+    if os.path.exists(today_path):
+        with open(today_path) as handle:
+            today_date = json.load(handle).get("date")
+    updated = 0
+    failed = 0
+    for saved in list_days(publish_dir):
+        iso = saved.get("date") or ""
+        if iso < start:
+            continue
+        if end and iso > end:
+            continue
+        before = model_snapshot(saved)
+        try:
+            features = clone_fetch(iso, players_for_fetch(saved))
+            attach_day(saved, features)
+        except Exception as exc:
+            log("backfill skipped %s: %s" % (iso, exc))
+            failed += 1
+            continue
+        after = model_snapshot(saved)
+        if before != after:
+            log("backfill refused %s: model fields changed" % iso)
+            failed += 1
+            continue
+        saved["clones_at"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
+        publish_day(publish_dir, saved, as_today=(iso == today_date))
+        updated += 1
+        log("backfill %s" % iso)
+    log("backfill updated %d, failed %d" % (updated, failed))
+    return failed
 
 
 def run(argv=None, get_json=None, tims_source=None):
@@ -105,6 +199,12 @@ def run(argv=None, get_json=None, tims_source=None):
         features.RAW = raw_dir
 
     try:
+        if args.backfill_clones:
+            failed = backfill_clones(
+                publish_dir, getter, raw_dir, log, args.backfill_from, args.backfill_to
+            )
+            return 1 if failed else 0
+
         if not args.no_refresh:
             added = refresh(when, raw_dir, get_json=getter, log=log)
             log("nhl refresh +%d games into %s" % (added, raw_dir))
@@ -126,7 +226,12 @@ def run(argv=None, get_json=None, tims_source=None):
             if schedule_payload is None:
                 log("schedule feed unavailable; using home/away from the groups file")
                 schedule_payload = {}
-            day = score_groups(when, groups, schedule_map(schedule_payload))
+            day = score_groups(
+                when,
+                groups,
+                schedule_map(schedule_payload),
+                clone_fetch=_clone_fetcher(getter, raw_dir),
+            )
             publish_day(publish_dir, day, as_today=True)
             log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))
         else:

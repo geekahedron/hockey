@@ -10,6 +10,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from job.clone_attach import set_method_picks
 from job.grade import apply_grade
 from job.publish import publish_day
 from job.score import METHODS, _pending_group, season_label
@@ -84,7 +85,42 @@ def _players(day_index, group_index, pool, pin_order=False):
             "goals": None,
         })
     rows.sort(key=lambda row: (-row["probability"]["model"], row["name"], row["pid"]))
+    _decorate_sample(rows)
     return rows
+
+
+def _decorate_sample(players):
+    """Illustrative second and third columns so the sample page can show them.
+
+    The numbers are a rotation of the sample rank. They are not a model run
+    and they are not another site's ratings.
+    """
+    count = len(players)
+    for index, player in enumerate(players):
+        shifted = (index - 1) % count
+        player["probability"]["ddh_style"] = round(max(0.04, 0.33 - shifted * 0.028), 4)
+        # Offset 6 puts the goals-per-game leader at a slot the sample
+        # sometimes marks as having scored, so the tracker is not all misses.
+        gpg_rank = (index + 6) % count
+        per_game = round(max(0.05, 0.92 - gpg_rank * 0.09), 2)
+        goals = int(round(per_game * 10))
+        shots = 20 + index
+        player["style"] = {
+            "gp": 10,
+            "goals": goals,
+            "goals_per_game": per_game,
+            "shots": shots,
+            "shots_per_game": round(shots / 10.0, 2),
+            "shooting_pct": round(100.0 * goals / shots, 1) if shots else 0.0,
+            "toi_per_game": round(14 + (index % 4), 2),
+            "pp_toi_per_game": round(1 + (index % 3) * 0.4, 2),
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME" if player["home"] else "AWAY",
+        }
+    order = sorted(players, key=lambda player: (-player["style"]["goals_per_game"], player["pid"]))
+    for place, player in enumerate(order, 1):
+        player.setdefault("rank", {})
+        player["rank"]["hch_style"] = place
 
 
 def _day(when, day_index, pending):
@@ -99,6 +135,8 @@ def _day(when, day_index, pending):
                     scorers.add(player["pid"])
         groups.append(_pending_group(group_index + 1, players))
         flat.extend(players)
+    for group in groups:
+        set_method_picks(group)
     day = {
         "schema": 1,
         "date": when.isoformat(),

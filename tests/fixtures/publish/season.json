@@ -5,7 +5,18 @@
   "methods": [
     {
       "id": "model",
-      "label": "Model"
+      "label": "Model",
+      "kind": "probability"
+    },
+    {
+      "id": "ddh_style",
+      "label": "DDH-style estimate",
+      "kind": "probability"
+    },
+    {
+      "id": "hch_style",
+      "label": "HCH-style",
+      "kind": "rank"
     }
   ],
   "summary": {
@@ -1052,5 +1063,3304 @@
         }
       ]
     }
-  ]
+  ],
+  "by_method": {
+    "model": {
+      "summary": {
+        "days": 12,
+        "picks": 36,
+        "hits": 15.0,
+        "hit_rate": 0.4167,
+        "top3_hits": 45,
+        "top3_slots": 108,
+        "top3_rate": 0.4167,
+        "random_baseline": 0.1875
+      },
+      "days": [
+        {
+          "date": "2026-11-02",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 5,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 2.0,
+          "running_picks": 3,
+          "running_hit_rate": 0.6667,
+          "running_top3_hits": 5,
+          "running_top3_slots": 9,
+          "running_top3_rate": 0.5556,
+          "running_random": 0.25,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Connor McDavid",
+              "pid": 8478001,
+              "pids": [
+                8478001
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.352,
+              "hit": 1.0,
+              "top3_hits": 3,
+              "random": 0.5,
+              "n": 8,
+              "scorers": [
+                "Connor McDavid",
+                "Nathan MacKinnon",
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "William Nylander",
+              "pid": 8478102,
+              "pids": [
+                8478102
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.317,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "William Nylander"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Aleksander Barkov",
+              "pid": 8478203,
+              "pids": [
+                8478203
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.282,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-03",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 3.0,
+          "running_picks": 6,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 8,
+          "running_top3_slots": 18,
+          "running_top3_rate": 0.4444,
+          "running_random": 0.2083,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nathan MacKinnon",
+              "pid": 8478002,
+              "pids": [
+                8478002
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.358,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mikko Rantanen",
+              "pid": 8478103,
+              "pids": [
+                8478103
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.323,
+              "hit": 0.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Brayden Point",
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Cale Makar",
+              "pid": 8478204,
+              "pids": [
+                8478204
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.288,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Cale Makar"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-04",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 4,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 4.0,
+          "running_picks": 9,
+          "running_hit_rate": 0.4444,
+          "running_top3_hits": 12,
+          "running_top3_slots": 27,
+          "running_top3_rate": 0.4444,
+          "running_random": 0.2083,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.364,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Brayden Point",
+              "pid": 8478104,
+              "pids": [
+                8478104
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.329,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Tim Stützle",
+              "pid": 8478205,
+              "pids": [
+                8478205
+              ],
+              "team": "OTT",
+              "opp": "TBL",
+              "home": 1,
+              "probability": 0.294,
+              "hit": 0.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner",
+                "Evan Bouchard",
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-05",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 4,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 6.0,
+          "running_picks": 12,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 16,
+          "running_top3_slots": 36,
+          "running_top3_rate": 0.4444,
+          "running_random": 0.1979,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Kirill Kaprizov",
+              "pid": 8478004,
+              "pids": [
+                8478004
+              ],
+              "team": "MIN",
+              "opp": "NSH",
+              "home": 1,
+              "probability": 0.37,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Jack Hughes",
+              "pid": 8478105,
+              "pids": [
+                8478105
+              ],
+              "team": "NJD",
+              "opp": "NYR",
+              "home": 1,
+              "probability": 0.335,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Mitch Marner",
+              "pid": 8478206,
+              "pids": [
+                8478206
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.3,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-06",
+          "status": "graded",
+          "picks": 3,
+          "hits": 0.0,
+          "hit_rate": 0.0,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 6.0,
+          "running_picks": 15,
+          "running_hit_rate": 0.4,
+          "running_top3_hits": 19,
+          "running_top3_slots": 45,
+          "running_top3_rate": 0.4222,
+          "running_random": 0.1917,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nikita Kucherov",
+              "pid": 8478005,
+              "pids": [
+                8478005
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.376,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jason Robertson",
+                "Connor McDavid"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Matthew Tkachuk",
+              "pid": 8478106,
+              "pids": [
+                8478106
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.341,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Evan Bouchard",
+              "pid": 8478207,
+              "pids": [
+                8478207
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.306,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-07",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 4,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 8.0,
+          "running_picks": 18,
+          "running_hit_rate": 0.4444,
+          "running_top3_hits": 23,
+          "running_top3_slots": 54,
+          "running_top3_rate": 0.4259,
+          "running_random": 0.1944,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "David Pastrnak",
+              "pid": 8478006,
+              "pids": [
+                8478006
+              ],
+              "team": "BOS",
+              "opp": "PHI",
+              "home": 1,
+              "probability": 0.352,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "David Pastrnak"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Kyle Connor",
+              "pid": 8478107,
+              "pids": [
+                8478107
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": 0.317,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor",
+                "Leon Draisaitl",
+                "Mikko Rantanen"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Morgan Rielly",
+              "pid": 8478208,
+              "pids": [
+                8478208
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.282,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-08",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 4,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 9.0,
+          "running_picks": 21,
+          "running_hit_rate": 0.4286,
+          "running_top3_hits": 27,
+          "running_top3_slots": 63,
+          "running_top3_rate": 0.4286,
+          "running_random": 0.1964,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Jason Robertson",
+              "pid": 8478007,
+              "pids": [
+                8478007
+              ],
+              "team": "DAL",
+              "opp": "STL",
+              "home": 1,
+              "probability": 0.358,
+              "hit": 0.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Sam Reinhart",
+                "Connor McDavid"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mark Scheifele",
+              "pid": 8478108,
+              "pids": [
+                8478108
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": 0.323,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Jack Eichel",
+              "pid": 8478201,
+              "pids": [
+                8478201
+              ],
+              "team": "VGK",
+              "opp": "SEA",
+              "home": 1,
+              "probability": 0.288,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel",
+                "Aleksander Barkov",
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-09",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 10.0,
+          "running_picks": 24,
+          "running_hit_rate": 0.4167,
+          "running_top3_hits": 30,
+          "running_top3_slots": 72,
+          "running_top3_rate": 0.4167,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Sam Reinhart",
+              "pid": 8478008,
+              "pids": [
+                8478008
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.364,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Sam Reinhart"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Leon Draisaitl",
+              "pid": 8478101,
+              "pids": [
+                8478101
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.329,
+              "hit": 0.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "William Nylander",
+                "Mikko Rantanen"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Sidney Crosby",
+              "pid": 8478202,
+              "pids": [
+                8478202
+              ],
+              "team": "PIT",
+              "opp": "BUF",
+              "home": 1,
+              "probability": 0.294,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-10",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 5,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 12.0,
+          "running_picks": 27,
+          "running_hit_rate": 0.4444,
+          "running_top3_hits": 35,
+          "running_top3_slots": 81,
+          "running_top3_rate": 0.4321,
+          "running_random": 0.1944,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Connor McDavid",
+              "pid": 8478001,
+              "pids": [
+                8478001
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.37,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "William Nylander",
+              "pid": 8478102,
+              "pids": [
+                8478102
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.335,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "William Nylander"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Aleksander Barkov",
+              "pid": 8478203,
+              "pids": [
+                8478203
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.3,
+              "hit": 1.0,
+              "top3_hits": 3,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Aleksander Barkov",
+                "Cale Makar",
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-11",
+          "status": "graded",
+          "picks": 3,
+          "hits": 0.0,
+          "hit_rate": 0.0,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 12.0,
+          "running_picks": 30,
+          "running_hit_rate": 0.4,
+          "running_top3_hits": 37,
+          "running_top3_slots": 90,
+          "running_top3_rate": 0.4111,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nathan MacKinnon",
+              "pid": 8478002,
+              "pids": [
+                8478002
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.376,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mikko Rantanen",
+              "pid": 8478103,
+              "pids": [
+                8478103
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.341,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Cale Makar",
+              "pid": 8478204,
+              "pids": [
+                8478204
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.306,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-12",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 5,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 14.0,
+          "running_picks": 33,
+          "running_hit_rate": 0.4242,
+          "running_top3_hits": 42,
+          "running_top3_slots": 99,
+          "running_top3_rate": 0.4242,
+          "running_random": 0.1932,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.352,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Brayden Point",
+              "pid": 8478104,
+              "pids": [
+                8478104
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.317,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Brayden Point",
+                "Jack Hughes"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Tim Stützle",
+              "pid": 8478205,
+              "pids": [
+                8478205
+              ],
+              "team": "OTT",
+              "opp": "TBL",
+              "home": 1,
+              "probability": 0.282,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Evan Bouchard",
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-13",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 15.0,
+          "running_picks": 36,
+          "running_hit_rate": 0.4167,
+          "running_top3_hits": 45,
+          "running_top3_slots": 108,
+          "running_top3_rate": 0.4167,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Kirill Kaprizov",
+              "pid": 8478004,
+              "pids": [
+                8478004
+              ],
+              "team": "MIN",
+              "opp": "NSH",
+              "home": 1,
+              "probability": 0.358,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Jack Hughes",
+              "pid": 8478105,
+              "pids": [
+                8478105
+              ],
+              "team": "NJD",
+              "opp": "NYR",
+              "home": 1,
+              "probability": 0.323,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Mitch Marner",
+              "pid": 8478206,
+              "pids": [
+                8478206
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.288,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner",
+                "Evan Bouchard"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-14",
+          "status": "pending",
+          "picks": 0,
+          "hits": null,
+          "hit_rate": null,
+          "top3_hits": null,
+          "top3_slots": null,
+          "random": null,
+          "running_hits": null,
+          "running_picks": null,
+          "running_hit_rate": null,
+          "running_top3_hits": null,
+          "running_top3_slots": null,
+          "running_top3_rate": null,
+          "running_random": null,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Connor McDavid",
+              "pid": 8478001,
+              "pids": [
+                8478001
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.364,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            },
+            {
+              "id": 2,
+              "pick": "Leon Draisaitl",
+              "pid": 8478101,
+              "pids": [
+                8478101
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.329,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            },
+            {
+              "id": 3,
+              "pick": "Jack Eichel",
+              "pid": 8478201,
+              "pids": [
+                8478201
+              ],
+              "team": "VGK",
+              "opp": "SEA",
+              "home": 1,
+              "probability": 0.294,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            }
+          ]
+        }
+      ]
+    },
+    "ddh_style": {
+      "summary": {
+        "days": 12,
+        "picks": 36,
+        "hits": 12.0,
+        "hit_rate": 0.3333,
+        "top3_hits": 30,
+        "top3_slots": 108,
+        "top3_rate": 0.2778,
+        "random_baseline": 0.1875
+      },
+      "days": [
+        {
+          "date": "2026-11-02",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 1.0,
+          "running_picks": 3,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 3,
+          "running_top3_slots": 9,
+          "running_top3_rate": 0.3333,
+          "running_random": 0.25,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nathan MacKinnon",
+              "pid": 8478002,
+              "pids": [
+                8478002
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.5,
+              "n": 8,
+              "scorers": [
+                "Connor McDavid",
+                "Nathan MacKinnon",
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mikko Rantanen",
+              "pid": 8478103,
+              "pids": [
+                8478103
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "William Nylander"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Cale Makar",
+              "pid": 8478204,
+              "pids": [
+                8478204
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-03",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 2.0,
+          "running_picks": 6,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 5,
+          "running_top3_slots": 18,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.2083,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Brayden Point",
+              "pid": 8478104,
+              "pids": [
+                8478104
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Brayden Point",
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Tim Stützle",
+              "pid": 8478205,
+              "pids": [
+                8478205
+              ],
+              "team": "OTT",
+              "opp": "TBL",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Cale Makar"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-04",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 3.0,
+          "running_picks": 9,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 8,
+          "running_top3_slots": 27,
+          "running_top3_rate": 0.2963,
+          "running_random": 0.2083,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Kirill Kaprizov",
+              "pid": 8478004,
+              "pids": [
+                8478004
+              ],
+              "team": "MIN",
+              "opp": "NSH",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Jack Hughes",
+              "pid": 8478105,
+              "pids": [
+                8478105
+              ],
+              "team": "NJD",
+              "opp": "NYR",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Mitch Marner",
+              "pid": 8478206,
+              "pids": [
+                8478206
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner",
+                "Evan Bouchard",
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-05",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 4.0,
+          "running_picks": 12,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 10,
+          "running_top3_slots": 36,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.1979,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nikita Kucherov",
+              "pid": 8478005,
+              "pids": [
+                8478005
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Matthew Tkachuk",
+              "pid": 8478106,
+              "pids": [
+                8478106
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Evan Bouchard",
+              "pid": 8478207,
+              "pids": [
+                8478207
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-06",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 5.0,
+          "running_picks": 15,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 13,
+          "running_top3_slots": 45,
+          "running_top3_rate": 0.2889,
+          "running_random": 0.1917,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "David Pastrnak",
+              "pid": 8478006,
+              "pids": [
+                8478006
+              ],
+              "team": "BOS",
+              "opp": "PHI",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jason Robertson",
+                "Connor McDavid"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Kyle Connor",
+              "pid": 8478107,
+              "pids": [
+                8478107
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Morgan Rielly",
+              "pid": 8478208,
+              "pids": [
+                8478208
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-07",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 6.0,
+          "running_picks": 18,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 15,
+          "running_top3_slots": 54,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.1944,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Jason Robertson",
+              "pid": 8478007,
+              "pids": [
+                8478007
+              ],
+              "team": "DAL",
+              "opp": "STL",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "David Pastrnak"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mark Scheifele",
+              "pid": 8478108,
+              "pids": [
+                8478108
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor",
+                "Leon Draisaitl",
+                "Mikko Rantanen"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Jack Eichel",
+              "pid": 8478201,
+              "pids": [
+                8478201
+              ],
+              "team": "VGK",
+              "opp": "SEA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-08",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 7.0,
+          "running_picks": 21,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 18,
+          "running_top3_slots": 63,
+          "running_top3_rate": 0.2857,
+          "running_random": 0.1964,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Sam Reinhart",
+              "pid": 8478008,
+              "pids": [
+                8478008
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Sam Reinhart",
+                "Connor McDavid"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Leon Draisaitl",
+              "pid": 8478101,
+              "pids": [
+                8478101
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Sidney Crosby",
+              "pid": 8478202,
+              "pids": [
+                8478202
+              ],
+              "team": "PIT",
+              "opp": "BUF",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel",
+                "Aleksander Barkov",
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-09",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 8.0,
+          "running_picks": 24,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 20,
+          "running_top3_slots": 72,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Connor McDavid",
+              "pid": 8478001,
+              "pids": [
+                8478001
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Sam Reinhart"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "William Nylander",
+              "pid": 8478102,
+              "pids": [
+                8478102
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "William Nylander",
+                "Mikko Rantanen"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Aleksander Barkov",
+              "pid": 8478203,
+              "pids": [
+                8478203
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-10",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 9.0,
+          "running_picks": 27,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 23,
+          "running_top3_slots": 81,
+          "running_top3_rate": 0.284,
+          "running_random": 0.1944,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nathan MacKinnon",
+              "pid": 8478002,
+              "pids": [
+                8478002
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mikko Rantanen",
+              "pid": 8478103,
+              "pids": [
+                8478103
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "William Nylander"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Cale Makar",
+              "pid": 8478204,
+              "pids": [
+                8478204
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Aleksander Barkov",
+                "Cale Makar",
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-11",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 10.0,
+          "running_picks": 30,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 25,
+          "running_top3_slots": 90,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Brayden Point",
+              "pid": 8478104,
+              "pids": [
+                8478104
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Tim Stützle",
+              "pid": 8478205,
+              "pids": [
+                8478205
+              ],
+              "team": "OTT",
+              "opp": "TBL",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-12",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 11.0,
+          "running_picks": 33,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 28,
+          "running_top3_slots": 99,
+          "running_top3_rate": 0.2828,
+          "running_random": 0.1932,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Kirill Kaprizov",
+              "pid": 8478004,
+              "pids": [
+                8478004
+              ],
+              "team": "MIN",
+              "opp": "NSH",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Jack Hughes",
+              "pid": 8478105,
+              "pids": [
+                8478105
+              ],
+              "team": "NJD",
+              "opp": "NYR",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Brayden Point",
+                "Jack Hughes"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Mitch Marner",
+              "pid": 8478206,
+              "pids": [
+                8478206
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Evan Bouchard",
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-13",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 12.0,
+          "running_picks": 36,
+          "running_hit_rate": 0.3333,
+          "running_top3_hits": 30,
+          "running_top3_slots": 108,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nikita Kucherov",
+              "pid": 8478005,
+              "pids": [
+                8478005
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Matthew Tkachuk",
+              "pid": 8478106,
+              "pids": [
+                8478106
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 0.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Evan Bouchard",
+              "pid": 8478207,
+              "pids": [
+                8478207
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner",
+                "Evan Bouchard"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-14",
+          "status": "pending",
+          "picks": 0,
+          "hits": null,
+          "hit_rate": null,
+          "top3_hits": null,
+          "top3_slots": null,
+          "random": null,
+          "running_hits": null,
+          "running_picks": null,
+          "running_hit_rate": null,
+          "running_top3_hits": null,
+          "running_top3_slots": null,
+          "running_top3_rate": null,
+          "running_random": null,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nathan MacKinnon",
+              "pid": 8478002,
+              "pids": [
+                8478002
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            },
+            {
+              "id": 2,
+              "pick": "William Nylander",
+              "pid": 8478102,
+              "pids": [
+                8478102
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            },
+            {
+              "id": 3,
+              "pick": "Sidney Crosby",
+              "pid": 8478202,
+              "pids": [
+                8478202
+              ],
+              "team": "PIT",
+              "opp": "BUF",
+              "home": 1,
+              "probability": 0.33,
+              "rank": null,
+              "goals_per_game": null,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            }
+          ]
+        }
+      ]
+    },
+    "hch_style": {
+      "summary": {
+        "days": 12,
+        "picks": 36,
+        "hits": 18.0,
+        "hit_rate": 0.5,
+        "top3_hits": 27,
+        "top3_slots": 108,
+        "top3_rate": 0.25,
+        "random_baseline": 0.1875
+      },
+      "days": [
+        {
+          "date": "2026-11-02",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 2.0,
+          "running_picks": 3,
+          "running_hit_rate": 0.6667,
+          "running_top3_hits": 3,
+          "running_top3_slots": 9,
+          "running_top3_rate": 0.3333,
+          "running_random": 0.25,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.5,
+              "n": 8,
+              "scorers": [
+                "Connor McDavid",
+                "Nathan MacKinnon",
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Brayden Point",
+              "pid": 8478104,
+              "pids": [
+                8478104
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "William Nylander"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Tim Stützle",
+              "pid": 8478205,
+              "pids": [
+                8478205
+              ],
+              "team": "OTT",
+              "opp": "TBL",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-03",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 3.0,
+          "running_picks": 6,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 5,
+          "running_top3_slots": 18,
+          "running_top3_rate": 0.2778,
+          "running_random": 0.2083,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Kirill Kaprizov",
+              "pid": 8478004,
+              "pids": [
+                8478004
+              ],
+              "team": "MIN",
+              "opp": "NSH",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Jack Hughes",
+              "pid": 8478105,
+              "pids": [
+                8478105
+              ],
+              "team": "NJD",
+              "opp": "NYR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Brayden Point",
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Mitch Marner",
+              "pid": 8478206,
+              "pids": [
+                8478206
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Cale Makar"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-04",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 5.0,
+          "running_picks": 9,
+          "running_hit_rate": 0.5556,
+          "running_top3_hits": 8,
+          "running_top3_slots": 27,
+          "running_top3_rate": 0.2963,
+          "running_random": 0.2083,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nikita Kucherov",
+              "pid": 8478005,
+              "pids": [
+                8478005
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Matthew Tkachuk",
+              "pid": 8478106,
+              "pids": [
+                8478106
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Evan Bouchard",
+              "pid": 8478207,
+              "pids": [
+                8478207
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner",
+                "Evan Bouchard",
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-05",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 1,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 6.0,
+          "running_picks": 12,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 9,
+          "running_top3_slots": 36,
+          "running_top3_rate": 0.25,
+          "running_random": 0.1979,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "David Pastrnak",
+              "pid": 8478006,
+              "pids": [
+                8478006
+              ],
+              "team": "BOS",
+              "opp": "PHI",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Kyle Connor",
+              "pid": 8478107,
+              "pids": [
+                8478107
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Morgan Rielly",
+              "pid": 8478208,
+              "pids": [
+                8478208
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-06",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.1667,
+          "running_hits": 8.0,
+          "running_picks": 15,
+          "running_hit_rate": 0.5333,
+          "running_top3_hits": 12,
+          "running_top3_slots": 45,
+          "running_top3_rate": 0.2667,
+          "running_random": 0.1917,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Jason Robertson",
+              "pid": 8478007,
+              "pids": [
+                8478007
+              ],
+              "team": "DAL",
+              "opp": "STL",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jason Robertson",
+                "Connor McDavid"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mark Scheifele",
+              "pid": 8478108,
+              "pids": [
+                8478108
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Jack Eichel",
+              "pid": 8478201,
+              "pids": [
+                8478201
+              ],
+              "team": "VGK",
+              "opp": "SEA",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-07",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 9.0,
+          "running_picks": 18,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 14,
+          "running_top3_slots": 54,
+          "running_top3_rate": 0.2593,
+          "running_random": 0.1944,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Sam Reinhart",
+              "pid": 8478008,
+              "pids": [
+                8478008
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "David Pastrnak"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Leon Draisaitl",
+              "pid": 8478101,
+              "pids": [
+                8478101
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor",
+                "Leon Draisaitl",
+                "Mikko Rantanen"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Sidney Crosby",
+              "pid": 8478202,
+              "pids": [
+                8478202
+              ],
+              "team": "PIT",
+              "opp": "BUF",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-08",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.2083,
+          "running_hits": 11.0,
+          "running_picks": 21,
+          "running_hit_rate": 0.5238,
+          "running_top3_hits": 17,
+          "running_top3_slots": 63,
+          "running_top3_rate": 0.2698,
+          "running_random": 0.1964,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Connor McDavid",
+              "pid": 8478001,
+              "pids": [
+                8478001
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Sam Reinhart",
+                "Connor McDavid"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "William Nylander",
+              "pid": 8478102,
+              "pids": [
+                8478102
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Aleksander Barkov",
+              "pid": 8478203,
+              "pids": [
+                8478203
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Jack Eichel",
+                "Aleksander Barkov",
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-09",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 1,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 12.0,
+          "running_picks": 24,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 18,
+          "running_top3_slots": 72,
+          "running_top3_rate": 0.25,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nathan MacKinnon",
+              "pid": 8478002,
+              "pids": [
+                8478002
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Sam Reinhart"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Mikko Rantanen",
+              "pid": 8478103,
+              "pids": [
+                8478103
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "William Nylander",
+                "Mikko Rantanen"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Cale Makar",
+              "pid": 8478204,
+              "pids": [
+                8478204
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-10",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 14.0,
+          "running_picks": 27,
+          "running_hit_rate": 0.5185,
+          "running_top3_hits": 21,
+          "running_top3_slots": 81,
+          "running_top3_rate": 0.2593,
+          "running_random": 0.1944,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Brayden Point",
+              "pid": 8478104,
+              "pids": [
+                8478104
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "William Nylander"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Tim Stützle",
+              "pid": 8478205,
+              "pids": [
+                8478205
+              ],
+              "team": "OTT",
+              "opp": "TBL",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.375,
+              "n": 8,
+              "scorers": [
+                "Aleksander Barkov",
+                "Cale Makar",
+                "Tim Stützle"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-11",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 2,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 15.0,
+          "running_picks": 30,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 23,
+          "running_top3_slots": 90,
+          "running_top3_rate": 0.2556,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Kirill Kaprizov",
+              "pid": 8478004,
+              "pids": [
+                8478004
+              ],
+              "team": "MIN",
+              "opp": "NSH",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Jack Hughes",
+              "pid": 8478105,
+              "pids": [
+                8478105
+              ],
+              "team": "NJD",
+              "opp": "NYR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Jack Hughes",
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Mitch Marner",
+              "pid": 8478206,
+              "pids": [
+                8478206
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-12",
+          "status": "graded",
+          "picks": 3,
+          "hits": 2.0,
+          "hit_rate": 0.6667,
+          "top3_hits": 3,
+          "top3_slots": 9,
+          "random": 0.25,
+          "running_hits": 17.0,
+          "running_picks": 33,
+          "running_hit_rate": 0.5152,
+          "running_top3_hits": 26,
+          "running_top3_slots": 99,
+          "running_top3_rate": 0.2626,
+          "running_random": 0.1932,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Nikita Kucherov",
+              "pid": 8478005,
+              "pids": [
+                8478005
+              ],
+              "team": "TBL",
+              "opp": "OTT",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Auston Matthews",
+                "Nikita Kucherov"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Matthew Tkachuk",
+              "pid": 8478106,
+              "pids": [
+                8478106
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Brayden Point",
+                "Jack Hughes"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Evan Bouchard",
+              "pid": 8478207,
+              "pids": [
+                8478207
+              ],
+              "team": "EDM",
+              "opp": "SJS",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 2,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Evan Bouchard",
+                "Jack Eichel"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-13",
+          "status": "graded",
+          "picks": 3,
+          "hits": 1.0,
+          "hit_rate": 0.3333,
+          "top3_hits": 1,
+          "top3_slots": 9,
+          "random": 0.125,
+          "running_hits": 18.0,
+          "running_picks": 36,
+          "running_hit_rate": 0.5,
+          "running_top3_hits": 27,
+          "running_top3_slots": 108,
+          "running_top3_rate": 0.25,
+          "running_random": 0.1875,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "David Pastrnak",
+              "pid": 8478006,
+              "pids": [
+                8478006
+              ],
+              "team": "BOS",
+              "opp": "PHI",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.0,
+              "n": 8,
+              "scorers": [],
+              "status": "graded"
+            },
+            {
+              "id": 2,
+              "pick": "Kyle Connor",
+              "pid": 8478107,
+              "pids": [
+                8478107
+              ],
+              "team": "WPG",
+              "opp": "VAN",
+              "home": 0,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 1.0,
+              "top3_hits": 1,
+              "random": 0.125,
+              "n": 8,
+              "scorers": [
+                "Kyle Connor"
+              ],
+              "status": "graded"
+            },
+            {
+              "id": 3,
+              "pick": "Morgan Rielly",
+              "pid": 8478208,
+              "pids": [
+                8478208
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": 0.0,
+              "top3_hits": 0,
+              "random": 0.25,
+              "n": 8,
+              "scorers": [
+                "Mitch Marner",
+                "Evan Bouchard"
+              ],
+              "status": "graded"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-14",
+          "status": "pending",
+          "picks": 0,
+          "hits": null,
+          "hit_rate": null,
+          "top3_hits": null,
+          "top3_slots": null,
+          "random": null,
+          "running_hits": null,
+          "running_picks": null,
+          "running_hit_rate": null,
+          "running_top3_hits": null,
+          "running_top3_slots": null,
+          "running_top3_rate": null,
+          "running_random": null,
+          "groups": [
+            {
+              "id": 1,
+              "pick": "Auston Matthews",
+              "pid": 8478003,
+              "pids": [
+                8478003
+              ],
+              "team": "TOR",
+              "opp": "CBJ",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            },
+            {
+              "id": 2,
+              "pick": "Mikko Rantanen",
+              "pid": 8478103,
+              "pids": [
+                8478103
+              ],
+              "team": "COL",
+              "opp": "ANA",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            },
+            {
+              "id": 3,
+              "pick": "Aleksander Barkov",
+              "pid": 8478203,
+              "pids": [
+                8478203
+              ],
+              "team": "FLA",
+              "opp": "CAR",
+              "home": 1,
+              "probability": null,
+              "rank": 1,
+              "goals_per_game": 0.92,
+              "hit": null,
+              "top3_hits": null,
+              "random": null,
+              "n": null,
+              "scorers": null,
+              "status": "pending"
+            }
+          ]
+        }
+      ]
+    }
+  }
 }

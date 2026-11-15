@@ -74,6 +74,8 @@ def _groups(path):
 
 def _feed(final=False, scorers=()):
     def get_json(url):
+        if "/stats/rest/" in url:
+            return {"data": []}
         if not url.endswith("/score/2026-11-14"):
             return {"games": []}
         state = "OFF" if final else "FUT"
@@ -113,7 +115,9 @@ def test_run_scores_and_then_grades(tmp_path, monkeypatch):
         today = json.load(open(os.path.join(publish, "today.json")))
         assert today["date"] == "2026-11-14"
         assert today["status"] == "pending"
-        assert today["methods"][0]["id"] == "model"
+        assert [m["id"] for m in today["methods"]] == ["model", "ddh_style", "hch_style"]
+        assert today["methods"][1]["label"] == "DDH-style estimate"
+        assert today["methods"][2]["label"] == "HCH-style"
         by_name = {}
         for group in today["groups"]:
             assert group["players"]
@@ -121,7 +125,12 @@ def test_run_scores_and_then_grades(tmp_path, monkeypatch):
             assert probs == sorted(probs, reverse=True)
             for player in group["players"]:
                 assert 0 < player["probability"]["model"] < 1
+                assert 0 < player["probability"]["ddh_style"] < 1
+                assert player["rank"]["hch_style"] >= 1
                 by_name[player["name"]] = player
+            assert "model" in group["method_picks"]
+            assert "ddh_style" in group["method_picks"]
+            assert "hch_style" in group["method_picks"]
         assert "Scratched" not in by_name
         # Schedule says EDM is home, so the file's AWAY flag is overridden.
         assert by_name["Star"]["home"] == 1

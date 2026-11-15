@@ -24,11 +24,24 @@ def _words(text):
     return out
 
 
-def assert_clean(text, where):
+_METHOD_PHRASES = (
+    "ddh-style estimate",
+    "ddh-style",
+    "ddh_style",
+    "hch-style",
+    "hch_style",
+)
+
+
+def assert_clean(text, where, allow_method_labels=False):
     low = text.lower()
     for banned in BANNED[:2]:
         assert banned not in low, where
-    words = set(_words(text))
+    scrubbed = low
+    if allow_method_labels:
+        for phrase in _METHOD_PHRASES:
+            scrubbed = scrubbed.replace(phrase, " ")
+    words = set(_words(scrubbed))
     for banned in BANNED[2:]:
         assert banned not in words, where
 
@@ -39,16 +52,24 @@ def assert_day(day):
     assert "generated_at" in day and "season" in day
     assert day["status"] in ("pending", "partial", "graded")
     assert day["model"] == "logistic"
-    assert [m["id"] for m in day["methods"]] == ["model"]
+    labels = {method["id"]: method["label"] for method in day["methods"]}
+    assert [method["id"] for method in day["methods"]] == ["model", "ddh_style", "hch_style"]
+    assert labels["model"] == "Model"
+    assert labels["ddh_style"] == "DDH-style estimate"
+    assert labels["hch_style"] == "HCH-style"
     assert "groups" in day
     for group in day["groups"]:
-        for key in ("id", "status", "players", "pick", "hit", "top3_hits", "random", "n", "scorers"):
+        for key in ("id", "status", "players", "pick", "hit", "top3_hits", "random", "n", "scorers", "method_picks"):
             assert key in group
+        for method_id in ("model", "ddh_style", "hch_style"):
+            assert method_id in group["method_picks"]
         probs = []
         for player in group["players"]:
             for key in ("pid", "name", "team", "opp", "home", "position", "probability", "pick", "scored", "goals"):
                 assert key in player
             assert "model" in player["probability"]
+            assert "ddh_style" in player["probability"]
+            assert "hch_style" in player["rank"]
             assert isinstance(player["probability"]["model"], float) or isinstance(player["probability"]["model"], int)
             probs.append(player["probability"]["model"])
             assert_public(player)
@@ -59,6 +80,9 @@ def assert_day(day):
 def assert_season(season):
     assert season["schema"] == 1
     assert season["method"] == "model"
+    assert season["summary"] == season["by_method"]["model"]["summary"]
+    for method_id in ("model", "ddh_style", "hch_style"):
+        assert season["by_method"][method_id]["summary"]["picks"] > 0
     summary = season["summary"]
     for key in ("days", "picks", "hits", "hit_rate", "top3_hits", "top3_slots", "top3_rate", "random_baseline"):
         assert key in summary
@@ -109,11 +133,11 @@ def test_fixture_site_schema():
             continue
         day = json.load(open(os.path.join(publish, "days", name)))
         assert_day(day)
-        assert_clean(json.dumps(day), name)
+        assert_clean(json.dumps(day), name, allow_method_labels=True)
         if day["status"] == "graded":
             graded += 1
             for group in day["groups"]:
                 assert group["scorers"] is not None
     assert graded >= 3
-    assert_clean(json.dumps(today), "today")
-    assert_clean(json.dumps(season), "season")
+    assert_clean(json.dumps(today), "today", allow_method_labels=True)
+    assert_clean(json.dumps(season), "season", allow_method_labels=True)

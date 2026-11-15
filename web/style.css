@@ -48,6 +48,14 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .summary .card{margin:0}
 .summary .who{font-weight:700;font-size:16px;margin:4px 0 2px}
 .summary .pct{color:var(--orange);font-weight:700;font-size:18px}
+.leaders{margin-top:8px}
+.leaders > div{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) auto;gap:6px;align-items:baseline;padding:3px 0;border-top:1px solid var(--line)}
+.leaders .lab{color:var(--muted);font-size:12px;font-weight:600}
+.leaders .who{font-size:13.5px;font-weight:600;margin:0}
+.leaders .pct{font-size:13.5px;font-weight:700}
+.leaders .on .lab,.leaders .on .who,.leaders .on .pct{color:var(--orange)}
+.stats-line{margin-top:2px}
+.stats .stat.on{outline:1px solid var(--orange)}
 .groups{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
 .groups .card{margin:0}
 .ghead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:4px}

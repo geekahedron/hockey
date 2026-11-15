@@ -4,8 +4,11 @@ Probabilities come from model/logistic_json.py (numpy only). The joblib
 pipeline is not loaded. Feature construction is features.FeatureBuilder;
 this module does not change those formulas.
 
-Published players carry a probability object keyed by method id so a later
-method can add a column without a new file format. Only "model" is filled in.
+Published players carry a probability object keyed by method id. "model"
+is the frozen logistic probability. "ddh_style" is the DDH-style estimate
+(also a probability). The HCH-style ranking lives on ``rank.hch_style`` and
+``style``, because it is not a probability. Neither extra method is another
+site's published number.
 """
 import datetime as dt
 import os
@@ -18,9 +21,10 @@ if _MODEL not in sys.path:
 
 from job.refresh import season_year
 
-# Plug-in list. The page renders one column per entry. A future method is
-# another object here plus a number under player["probability"][id].
-# Do not put another site's percentages, ranks, or picks in this list.
+# Plug-in list. The page renders one column per entry.
+# "model" is the frozen logistic probability. The other two are computed
+# from public NHL season totals. Do not put another site's published
+# percentages, ranks, or picks in this list.
 class ScoreError(Exception):
     pass
 
@@ -29,9 +33,28 @@ METHODS = [
     {
         "id": "model",
         "label": "Model",
+        "kind": "probability",
         "description": (
             "Logistic regression on shrunk NHL rates. "
             "Probability of at least one non-shootout goal."
+        ),
+    },
+    {
+        "id": "ddh_style",
+        "label": "DDH-style estimate",
+        "kind": "probability",
+        "description": (
+            "Approximate chance of at least one goal, from public NHL rates. "
+            "An estimate, not a third-party rating."
+        ),
+    },
+    {
+        "id": "hch_style",
+        "label": "HCH-style",
+        "kind": "rank",
+        "description": (
+            "Ranking by this season's goals per game. "
+            "Ties break toward the lower player id."
         ),
     },
 ]
@@ -75,11 +98,16 @@ def _round_prob(value):
     return round(float(value), 4)
 
 
-def score_groups(when, groups, schedule):
+def score_groups(when, groups, schedule, clone_fetch=None):
     """Return a pending day document. ``schedule`` is abbrev -> 1/0.
 
     Players marked unavailable are left out. A player with no team or
     opponent is skipped and named in ``skipped`` (names only).
+
+    ``clone_fetch(date, players)`` returns public-NHL feature rows for the
+    two extra methods. The logistic probabilities are computed first and are
+    not read back from those rows. Omit ``clone_fetch`` to publish the model
+    only (tests of the frozen path). The daily runner always passes one.
     """
     import pandas as pd
     import features
@@ -155,6 +183,15 @@ def score_groups(when, groups, schedule):
         "groups": group_docs,
         "skipped": skipped,
     }
+    if clone_fetch is not None:
+        from job.clone_attach import CloneError, attach_day, players_for_fetch
+        try:
+            clone_rows = clone_fetch(ds, players_for_fetch(day))
+        except CloneError:
+            raise
+        except Exception as exc:
+            raise ScoreError("clone features failed: %s" % exc)
+        attach_day(day, clone_rows)
     return day
 
 

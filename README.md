@@ -8,8 +8,10 @@ pipeline. This tool does not change features, training, or the scoring math.
 See `model/README.md` for how the model was built.
 
 The page shows this model's probability that a player scores at least one
-non-shootout goal. It does not show another site's percentages, ranks, or
-picks. A later method can be added as another probability column.
+non-shootout goal. Two more columns are estimates built from public NHL
+stats: a **DDH-style estimate** (a probability) and an **HCH-style** ranking
+(this season's goals per game). They are not another site's percentages,
+ranks, or picks.
 
 ## Page
 
@@ -19,17 +21,17 @@ reads JSON:
 
 | File | What the page does with it |
 | --- | --- |
-| `data/today.json` | Today's three groups. Players sorted by the selected method, a bar per player, team, opponent, home or away, top pick highlighted. |
+| `data/today.json` | Today's three groups. Players sorted by the selected method, a bar per player, team, opponent, home or away, top pick highlighted. The summary lists each method's leader. |
 | `data/days/index.json` | The date list. |
 | `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. |
-| `data/season.json` | Season tracker: per-day pick, probability, hit, running hit rate, top-3 hits, and the random baseline. |
+| `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. The top-level summary is the model. `by_method` repeats it for each method. |
 
-Views are Today, Past days, and Season. The method menu lists Model, which
-is the only working choice, and a disabled slot for a later method. The
-compare table on Today has a column per published method and an empty
-"Next method" column until a second one exists. A new method is an entry in
-the JSON `methods` array plus a number on each player at
-`probability.<id>`. The page does not fetch anything else.
+Views are Today, Past days, and Season. The method menu lists Model, the
+DDH-style estimate, and HCH-style. The compare table on Today has a column
+per method. A probability method is a number on each player at
+`probability.<id>` (0 to 1). A ranking method is `rank.<id>` (1 is first)
+plus `style` (goals per game and the other public season totals). The page
+does not fetch anything else.
 
 Open it from a local server (fetch does not work from `file://`):
 
@@ -65,7 +67,11 @@ One run:
    team abbreviation and jersey number (`NJ`/`TB`/`SJ`/`LA` map to
    `NJD`/`TBL`/`SJS`/`LAK`). The old px-api host is not used.
 3. Scores every available player with `logistic_json.predict_proba`. The
-   joblib pipeline is not loaded.
+   joblib pipeline is not loaded. It then adds the DDH-style estimate and
+   the HCH-style ranking from public NHL season totals
+   (`clones/`, numpy only). Those totals stop at the day before the slate.
+   The logistic probabilities, the model pick, and the player order are
+   computed first and are not rewritten.
 4. Grades every published day whose games are now final. A non-shootout goal
    counts. A group stays pending until each of its teams is `OFF` or `FINAL`.
 5. Writes the publish directory: `today.json`, `days/YYYY-MM-DD.json`,
@@ -105,8 +111,35 @@ The Tims adapter also accepts the `pickGroups` shape in
 and are not scored.
 
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
-`--no-grade`, `--rescore`, `--log`. A graded day is not scored again unless
-you pass `--rescore`. A still-pending day is scored again, then graded.
+`--no-grade`, `--rescore`, `--backfill-clones`, `--log`. A graded day is not
+scored again unless you pass `--rescore`. A still-pending day is scored
+again, then graded.
+
+## Backfill on the host
+
+Days published before the two extra columns existed do not have them. This
+does not deploy the page and does not rescore the logistic model. It does
+not need Tims credentials. It does need network access to `api.nhle.com` and
+`api-web.nhle.com`. Run it from the git checkout, then rsync the JSON the
+same way the cron does. Copy `web/` by hand only when you want the new page.
+
+```
+cd ~/tims-hockey
+git pull
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-clones \
+  --log ~/tims-hockey/logs/backfill.log
+rsync -a --delete ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
+
+That walks every `days/YYYY-MM-DD.json` from 2026-11-02 onward. `--backfill-from`
+and `--backfill-to` narrow the window. A day that fails is left as it was;
+the command exits 1 if any day failed, and rerunning it is safe. Each graded
+day then carries hits and picks for all three methods in `season.json`.
+The morning cron does not need the flag: a new slate is scored with all
+three methods, and grading fills the extra hits from the picks stored that
+morning.
 
 ## Secrets
 
@@ -160,8 +193,8 @@ python3 -m venv .venv
   sklearn pipeline on `tests/fixtures/feature_rows.json`.
 * `tests/test_schema.py` — publish-dir schema, and the page sources.
 * `tests/test_py39.py` — vermin, Python 3.9 or older, on `model/`, `job/`, and `tests/`.
-* Group parsing, grading, the incremental refresh, and a tiny end-to-end run
-  are the other files in `tests/`.
+* Group parsing, grading, the incremental refresh, the two extra methods,
+  and a tiny end-to-end run are the other files in `tests/`.
 
 Rebuild the screenshot fixture with `python tests/build_fixture_site.py`.
 Those probabilities are hand-set sample data, not a model run.

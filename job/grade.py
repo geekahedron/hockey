@@ -52,6 +52,49 @@ def goal_counts(payload):
     return final, goals
 
 
+def fill_method_hits(group):
+    """Fill hit and top-3 for each stored method pick.
+
+    The model block copies the hit ``apply_grade`` already computed from
+    ``player["pick"]``. Other methods use the pids stored when the day was
+    scored. This does not choose a new pick.
+    """
+    picks = group.get("method_picks") or {}
+    if not picks:
+        return
+    players = group.get("players") or []
+    by_pid = {}
+    for player in players:
+        by_pid[int(player["pid"])] = player
+    model = picks.get("model")
+    if model is not None:
+        model["hit"] = group.get("hit")
+        model["top3_hits"] = group.get("top3_hits")
+    graded = group.get("status") == "graded"
+    for method_id, block in picks.items():
+        if method_id == "model":
+            continue
+        if not graded:
+            block["hit"] = None
+            block["top3_hits"] = None
+            continue
+        pids = [int(pid) for pid in (block.get("pids") or [])]
+        tied = [by_pid[pid] for pid in pids if pid in by_pid]
+        if tied and all(player.get("scored") is not None for player in tied):
+            block["hit"] = round(
+                sum(player["scored"] for player in tied) / float(len(tied)), 4
+            )
+        else:
+            block["hit"] = None
+        top_ids = [int(pid) for pid in (block.get("top3") or [])]
+        top = [by_pid[pid] for pid in top_ids if pid in by_pid]
+        if top and all(player.get("scored") is not None for player in top):
+            block["top3_hits"] = int(sum(player["scored"] for player in top))
+        else:
+            block["top3_hits"] = 0
+    return group
+
+
 def apply_grade(day, payload):
     """Fill hit / scorers / random on ``day``. Pending groups stay pending.
 
@@ -106,6 +149,8 @@ def apply_grade(day, payload):
         group["random"] = round(scored_n / float(n), 4) if n else None
         group["n"] = n
         group["scorers"] = scorers
+    for group in day.get("groups") or []:
+        fill_method_hits(group)
     statuses = [g.get("status") for g in day.get("groups") or []]
     if statuses and all(s == "graded" for s in statuses):
         day["status"] = "graded"
