@@ -235,6 +235,10 @@ __pycache__/
 /logs/
 web/data/
 
+# Previous-season cache written by clones/score.py. The daily job caches
+# the same totals under model/raw, which is already ignored.
+clones/cache_prev_seasons.json
+
 # Trained sklearn blobs and generated feature tables stay out of the repo
 *.joblib
 data/*.csv.gz

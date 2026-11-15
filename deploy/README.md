@@ -5,9 +5,9 @@ Bluehost/Justhost account. The cron job publishes JSON. The site is static
 files plus that JSON. Nothing here submits a Tims pick.
 
 The host is Python 3.9.25. The virtualenv is already at `~/tims-venv`
-(numpy 2.0.2, pandas 2.3.3, and the rest of the research stack). The daily
-runner only imports numpy and pandas. It scores with `model/logistic_json.py`,
-not the joblib file.
+(numpy 2.0.2, pandas 2.3.3, sklearn 1.6.1). The daily runner scores the
+logistic model with `model/logistic_json.py` (numpy and pandas, not the
+joblib file). The two extra methods use numpy only (`clones/`).
 
 ## Layout
 
@@ -77,6 +77,35 @@ local JSON file instead. Do not point `--groups` at a file inside
 
 Manual publish of the page itself, after a code change, is the three-file
 `cp` above. The cron does not copy HTML.
+
+## Backfill the two extra methods
+
+Do not deploy from a checkout of this README. On the host, after `git pull`,
+add the DDH-style estimate and the HCH-style ranking to days already in
+`~/tims-hockey/publish`. This does not rescore the logistic model, does not
+read Tims credentials, and does not copy HTML. It calls the public NHL stats
+API for each slate from 2026-11-02, using totals through the previous day.
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-clones \
+  --log ~/tims-hockey/logs/backfill.log
+```
+
+Exit 0 means every day in that window was updated. Exit 1 means at least one
+day was left unchanged; the log names it, and running the command again
+retries it. `--backfill-from 2026-11-02` and `--backfill-to YYYY-MM-DD`
+limit the range. When the exit code is 0, the usual rsync publishes the JSON:
+
+```
+rsync -a --delete ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
+
+Copy `web/index.html`, `web/app.js`, and `web/style.css` into
+`~/public_html/tools/hockey/` when the page itself should show the new
+columns. Until that copy, the previous page still reads the model fields.
 
 ## Secrets
 

@@ -19,6 +19,15 @@ _BANNED_SUBSTRINGS = (
     "hockeychallengehelper",
 )
 _BANNED_WORDS = ("ddh", "hch")
+# Our own method ids and the public labels. Bare "ddh" / "hch" still fail,
+# so a scraped rating cannot ride along under those words.
+_ALLOWED_PHRASES = (
+    "ddh-style estimate",
+    "ddh-style",
+    "ddh_style",
+    "hch-style",
+    "hch_style",
+)
 _WORD = re.compile(r"[a-z0-9]+")
 _SECRET_KEYS = {
     "authorization", "cookie", "token", "password", "secret",
@@ -49,7 +58,10 @@ def assert_public(obj):
         for banned in _BANNED_SUBSTRINGS:
             if banned in low:
                 raise PublishError("refusing to publish banned content")
-        words = set(_WORD.findall(low))
+        scrubbed = low
+        for phrase in _ALLOWED_PHRASES:
+            scrubbed = scrubbed.replace(phrase, " ")
+        words = set(_WORD.findall(scrubbed))
         for banned in _BANNED_WORDS:
             if banned in words:
                 raise PublishError("refusing to publish banned content")
@@ -121,7 +133,67 @@ def _round(value, places=4):
     return round(float(value), places)
 
 
-def build_season(days):
+def _method_catalog(days):
+    catalog = []
+    seen = set()
+    for day in days:
+        for method in day.get("methods") or []:
+            method_id = method.get("id")
+            if not method_id or method_id in seen:
+                continue
+            seen.add(method_id)
+            catalog.append({
+                "id": method_id,
+                "label": method.get("label") or method_id,
+                "kind": method.get("kind") or "probability",
+            })
+    if "model" not in seen:
+        catalog.insert(0, {"id": "model", "label": "Model", "kind": "probability"})
+    return catalog
+
+
+def _group_view(group, method_id):
+    """One tracker row. The model row reads the original graded fields."""
+    if method_id == "model":
+        pick = group.get("pick") or {}
+        return {
+            "id": group.get("id"),
+            "pick": pick.get("name"),
+            "pid": (pick.get("pids") or [None])[0],
+            "pids": pick.get("pids") or [],
+            "team": pick.get("team"),
+            "opp": pick.get("opp"),
+            "home": pick.get("home"),
+            "probability": pick.get("probability"),
+            "hit": group.get("hit"),
+            "top3_hits": group.get("top3_hits"),
+            "random": group.get("random"),
+            "n": group.get("n"),
+            "scorers": group.get("scorers"),
+            "status": group.get("status"),
+        }
+    block = (group.get("method_picks") or {}).get(method_id) or {}
+    return {
+        "id": group.get("id"),
+        "pick": block.get("name"),
+        "pid": (block.get("pids") or [None])[0],
+        "pids": block.get("pids") or [],
+        "team": block.get("team"),
+        "opp": block.get("opp"),
+        "home": block.get("home"),
+        "probability": block.get("probability"),
+        "rank": block.get("rank"),
+        "goals_per_game": block.get("goals_per_game"),
+        "hit": block.get("hit"),
+        "top3_hits": block.get("top3_hits"),
+        "random": group.get("random"),
+        "n": group.get("n"),
+        "scorers": group.get("scorers"),
+        "status": group.get("status"),
+    }
+
+
+def _season_for_method(days, method_id):
     """Per-day picks plus a running hit rate, top-3 hits, and a random baseline.
 
     Pending groups are listed and do not move the running totals. The running
@@ -134,41 +206,24 @@ def build_season(days):
     running_top3_slots = 0
     running_random_sum = 0.0
     running_random_n = 0
-    season_name = None
     out_days = []
     for day in days:
-        if season_name is None and day.get("season"):
-            season_name = day["season"]
         graded_groups = []
         listed = []
         for group in day.get("groups") or []:
-            pick = group.get("pick") or {}
-            row = {
-                "id": group.get("id"),
-                "pick": pick.get("name"),
-                "pid": (pick.get("pids") or [None])[0],
-                "pids": pick.get("pids") or [],
-                "team": pick.get("team"),
-                "opp": pick.get("opp"),
-                "home": pick.get("home"),
-                "probability": pick.get("probability"),
-                "hit": group.get("hit"),
-                "top3_hits": group.get("top3_hits"),
-                "random": group.get("random"),
-                "n": group.get("n"),
-                "scorers": group.get("scorers"),
-                "status": group.get("status"),
-            }
+            row = _group_view(group, method_id)
             listed.append(row)
-            if group.get("status") == "graded" and group.get("hit") is not None:
-                graded_groups.append(group)
+            if group.get("status") == "graded" and row.get("hit") is not None:
+                graded_groups.append((group, row))
         day_picks = len(graded_groups)
-        day_hits = sum(g["hit"] for g in graded_groups) if graded_groups else None
-        day_top3 = sum(g["top3_hits"] for g in graded_groups) if graded_groups else None
+        day_hits = sum(row["hit"] for _group, row in graded_groups) if graded_groups else None
+        day_top3 = sum(row["top3_hits"] for _group, row in graded_groups) if graded_groups else None
         day_slots = 0
-        for group in graded_groups:
+        for group, _row in graded_groups:
             day_slots += min(3, len(group.get("players") or []))
-        randoms = [g["random"] for g in graded_groups if g.get("random") is not None]
+        randoms = [
+            group["random"] for group, _row in graded_groups if group.get("random") is not None
+        ]
         day_random = (sum(randoms) / float(len(randoms))) if randoms else None
         if graded_groups:
             running_hits += day_hits
@@ -218,13 +273,30 @@ def build_season(days):
             _round(running_random_sum / float(running_random_n)) if running_random_n else None
         ),
     }
+    return summary, out_days
+
+
+def build_season(days):
+    """Season tracker. The top-level summary is the model, and ``by_method`` grades each method."""
+    season_name = None
+    for day in days:
+        if day.get("season"):
+            season_name = day["season"]
+            break
+    catalog = _method_catalog(days)
+    summary, out_days = _season_for_method(days, "model")
+    by_method = {}
+    for method in catalog:
+        method_summary, method_days = _season_for_method(days, method["id"])
+        by_method[method["id"]] = {"summary": method_summary, "days": method_days}
     return {
         "schema": 1,
         "season": season_name,
         "method": "model",
-        "methods": [{"id": "model", "label": "Model"}],
+        "methods": catalog,
         "summary": summary,
         "days": out_days,
+        "by_method": by_method,
     }
 
 

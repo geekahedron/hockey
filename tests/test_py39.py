@@ -18,7 +18,7 @@ def _vermin():
 
 def test_vermin_accepts_python_39():
     proc = subprocess.run(
-        [_vermin(), "-t=3.9-", "--no-tips", "model", "job", "tests"],
+        [_vermin(), "-t=3.9-", "--no-tips", "model", "job", "tests", "clones"],
         cwd=ROOT,
         capture_output=True,
         text=True,

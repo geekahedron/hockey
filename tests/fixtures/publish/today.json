@@ -9,7 +9,20 @@
     {
       "id": "model",
       "label": "Model",
+      "kind": "probability",
       "description": "Logistic regression on shrunk NHL rates. Probability of at least one non-shootout goal."
+    },
+    {
+      "id": "ddh_style",
+      "label": "DDH-style estimate",
+      "kind": "probability",
+      "description": "Approximate chance of at least one goal, from public NHL rates. An estimate, not a third-party rating."
+    },
+    {
+      "id": "hch_style",
+      "label": "HCH-style",
+      "kind": "rank",
+      "description": "Ranking by this season's goals per game. Ties break toward the lower player id."
     }
   ],
   "groups": [
@@ -25,11 +38,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.364
+            "model": 0.364,
+            "ddh_style": 0.134
           },
           "pick": true,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 4,
+            "goals_per_game": 0.38,
+            "shots": 20,
+            "shots_per_game": 2.0,
+            "shooting_pct": 20.0,
+            "toi_per_game": 14,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 7
+          }
         },
         {
           "pid": 8478002,
@@ -39,11 +68,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.337
+            "model": 0.337,
+            "ddh_style": 0.33
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 3,
+            "goals_per_game": 0.29,
+            "shots": 21,
+            "shots_per_game": 2.1,
+            "shooting_pct": 14.3,
+            "toi_per_game": 15,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 8
+          }
         },
         {
           "pid": 8478003,
@@ -53,11 +98,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.31
+            "model": 0.31,
+            "ddh_style": 0.302
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 9,
+            "goals_per_game": 0.92,
+            "shots": 22,
+            "shots_per_game": 2.2,
+            "shooting_pct": 40.9,
+            "toi_per_game": 16,
+            "pp_toi_per_game": 1.8,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 1
+          }
         },
         {
           "pid": 8478004,
@@ -67,11 +128,27 @@
           "home": 1,
           "position": "L",
           "probability": {
-            "model": 0.283
+            "model": 0.283,
+            "ddh_style": 0.274
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 8,
+            "goals_per_game": 0.83,
+            "shots": 23,
+            "shots_per_game": 2.3,
+            "shooting_pct": 34.8,
+            "toi_per_game": 17,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 2
+          }
         },
         {
           "pid": 8478005,
@@ -81,11 +158,27 @@
           "home": 0,
           "position": "R",
           "probability": {
-            "model": 0.256
+            "model": 0.256,
+            "ddh_style": 0.246
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 7,
+            "goals_per_game": 0.74,
+            "shots": 24,
+            "shots_per_game": 2.4,
+            "shooting_pct": 29.2,
+            "toi_per_game": 14,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "AWAY"
+          },
+          "rank": {
+            "hch_style": 3
+          }
         },
         {
           "pid": 8478006,
@@ -95,11 +188,27 @@
           "home": 1,
           "position": "R",
           "probability": {
-            "model": 0.229
+            "model": 0.229,
+            "ddh_style": 0.218
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 6,
+            "goals_per_game": 0.65,
+            "shots": 25,
+            "shots_per_game": 2.5,
+            "shooting_pct": 24.0,
+            "toi_per_game": 15,
+            "pp_toi_per_game": 1.8,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 4
+          }
         },
         {
           "pid": 8478007,
@@ -109,11 +218,27 @@
           "home": 1,
           "position": "L",
           "probability": {
-            "model": 0.202
+            "model": 0.202,
+            "ddh_style": 0.19
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 6,
+            "goals_per_game": 0.56,
+            "shots": 26,
+            "shots_per_game": 2.6,
+            "shooting_pct": 23.1,
+            "toi_per_game": 16,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 5
+          }
         },
         {
           "pid": 8478008,
@@ -123,11 +248,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.175
+            "model": 0.175,
+            "ddh_style": 0.162
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 5,
+            "goals_per_game": 0.47,
+            "shots": 27,
+            "shots_per_game": 2.7,
+            "shooting_pct": 18.5,
+            "toi_per_game": 17,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 6
+          }
         }
       ],
       "pick": {
@@ -144,7 +285,62 @@
       "top3_hits": null,
       "random": null,
       "n": null,
-      "scorers": null
+      "scorers": null,
+      "method_picks": {
+        "model": {
+          "pids": [
+            8478001
+          ],
+          "name": "Connor McDavid",
+          "team": "EDM",
+          "opp": "SJS",
+          "home": 1,
+          "probability": 0.364,
+          "top3": [
+            8478001,
+            8478002,
+            8478003
+          ],
+          "hit": null,
+          "top3_hits": null
+        },
+        "ddh_style": {
+          "pids": [
+            8478002
+          ],
+          "name": "Nathan MacKinnon",
+          "team": "COL",
+          "opp": "ANA",
+          "home": 1,
+          "probability": 0.33,
+          "top3": [
+            8478002,
+            8478003,
+            8478004
+          ],
+          "hit": null,
+          "top3_hits": null
+        },
+        "hch_style": {
+          "pids": [
+            8478003
+          ],
+          "name": "Auston Matthews",
+          "team": "TOR",
+          "opp": "CBJ",
+          "home": 1,
+          "probability": null,
+          "rank": 1,
+          "goals_per_game": 0.92,
+          "top3": [
+            8478003,
+            8478004,
+            8478005
+          ],
+          "hit": null,
+          "top3_hits": null
+        }
+      }
     },
     {
       "id": 2,
@@ -158,11 +354,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.329
+            "model": 0.329,
+            "ddh_style": 0.134
           },
           "pick": true,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 4,
+            "goals_per_game": 0.38,
+            "shots": 20,
+            "shots_per_game": 2.0,
+            "shooting_pct": 20.0,
+            "toi_per_game": 14,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 7
+          }
         },
         {
           "pid": 8478102,
@@ -172,11 +384,27 @@
           "home": 1,
           "position": "R",
           "probability": {
-            "model": 0.302
+            "model": 0.302,
+            "ddh_style": 0.33
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 3,
+            "goals_per_game": 0.29,
+            "shots": 21,
+            "shots_per_game": 2.1,
+            "shooting_pct": 14.3,
+            "toi_per_game": 15,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 8
+          }
         },
         {
           "pid": 8478103,
@@ -186,11 +414,27 @@
           "home": 1,
           "position": "R",
           "probability": {
-            "model": 0.275
+            "model": 0.275,
+            "ddh_style": 0.302
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 9,
+            "goals_per_game": 0.92,
+            "shots": 22,
+            "shots_per_game": 2.2,
+            "shooting_pct": 40.9,
+            "toi_per_game": 16,
+            "pp_toi_per_game": 1.8,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 1
+          }
         },
         {
           "pid": 8478104,
@@ -200,11 +444,27 @@
           "home": 0,
           "position": "C",
           "probability": {
-            "model": 0.248
+            "model": 0.248,
+            "ddh_style": 0.274
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 8,
+            "goals_per_game": 0.83,
+            "shots": 23,
+            "shots_per_game": 2.3,
+            "shooting_pct": 34.8,
+            "toi_per_game": 17,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "AWAY"
+          },
+          "rank": {
+            "hch_style": 2
+          }
         },
         {
           "pid": 8478105,
@@ -214,11 +474,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.221
+            "model": 0.221,
+            "ddh_style": 0.246
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 7,
+            "goals_per_game": 0.74,
+            "shots": 24,
+            "shots_per_game": 2.4,
+            "shooting_pct": 29.2,
+            "toi_per_game": 14,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 3
+          }
         },
         {
           "pid": 8478106,
@@ -228,11 +504,27 @@
           "home": 1,
           "position": "R",
           "probability": {
-            "model": 0.194
+            "model": 0.194,
+            "ddh_style": 0.218
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 6,
+            "goals_per_game": 0.65,
+            "shots": 25,
+            "shots_per_game": 2.5,
+            "shooting_pct": 24.0,
+            "toi_per_game": 15,
+            "pp_toi_per_game": 1.8,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 4
+          }
         },
         {
           "pid": 8478107,
@@ -242,11 +534,27 @@
           "home": 0,
           "position": "L",
           "probability": {
-            "model": 0.167
+            "model": 0.167,
+            "ddh_style": 0.19
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 6,
+            "goals_per_game": 0.56,
+            "shots": 26,
+            "shots_per_game": 2.6,
+            "shooting_pct": 23.1,
+            "toi_per_game": 16,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "AWAY"
+          },
+          "rank": {
+            "hch_style": 5
+          }
         },
         {
           "pid": 8478108,
@@ -256,11 +564,27 @@
           "home": 0,
           "position": "C",
           "probability": {
-            "model": 0.14
+            "model": 0.14,
+            "ddh_style": 0.162
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 5,
+            "goals_per_game": 0.47,
+            "shots": 27,
+            "shots_per_game": 2.7,
+            "shooting_pct": 18.5,
+            "toi_per_game": 17,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "AWAY"
+          },
+          "rank": {
+            "hch_style": 6
+          }
         }
       ],
       "pick": {
@@ -277,7 +601,62 @@
       "top3_hits": null,
       "random": null,
       "n": null,
-      "scorers": null
+      "scorers": null,
+      "method_picks": {
+        "model": {
+          "pids": [
+            8478101
+          ],
+          "name": "Leon Draisaitl",
+          "team": "EDM",
+          "opp": "SJS",
+          "home": 1,
+          "probability": 0.329,
+          "top3": [
+            8478101,
+            8478102,
+            8478103
+          ],
+          "hit": null,
+          "top3_hits": null
+        },
+        "ddh_style": {
+          "pids": [
+            8478102
+          ],
+          "name": "William Nylander",
+          "team": "TOR",
+          "opp": "CBJ",
+          "home": 1,
+          "probability": 0.33,
+          "top3": [
+            8478102,
+            8478103,
+            8478104
+          ],
+          "hit": null,
+          "top3_hits": null
+        },
+        "hch_style": {
+          "pids": [
+            8478103
+          ],
+          "name": "Mikko Rantanen",
+          "team": "COL",
+          "opp": "ANA",
+          "home": 1,
+          "probability": null,
+          "rank": 1,
+          "goals_per_game": 0.92,
+          "top3": [
+            8478103,
+            8478104,
+            8478105
+          ],
+          "hit": null,
+          "top3_hits": null
+        }
+      }
     },
     {
       "id": 3,
@@ -291,11 +670,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.294
+            "model": 0.294,
+            "ddh_style": 0.134
           },
           "pick": true,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 4,
+            "goals_per_game": 0.38,
+            "shots": 20,
+            "shots_per_game": 2.0,
+            "shooting_pct": 20.0,
+            "toi_per_game": 14,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 7
+          }
         },
         {
           "pid": 8478202,
@@ -305,11 +700,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.267
+            "model": 0.267,
+            "ddh_style": 0.33
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 3,
+            "goals_per_game": 0.29,
+            "shots": 21,
+            "shots_per_game": 2.1,
+            "shooting_pct": 14.3,
+            "toi_per_game": 15,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 8
+          }
         },
         {
           "pid": 8478203,
@@ -319,11 +730,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.24
+            "model": 0.24,
+            "ddh_style": 0.302
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 9,
+            "goals_per_game": 0.92,
+            "shots": 22,
+            "shots_per_game": 2.2,
+            "shooting_pct": 40.9,
+            "toi_per_game": 16,
+            "pp_toi_per_game": 1.8,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 1
+          }
         },
         {
           "pid": 8478204,
@@ -333,11 +760,27 @@
           "home": 1,
           "position": "D",
           "probability": {
-            "model": 0.213
+            "model": 0.213,
+            "ddh_style": 0.274
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 8,
+            "goals_per_game": 0.83,
+            "shots": 23,
+            "shots_per_game": 2.3,
+            "shooting_pct": 34.8,
+            "toi_per_game": 17,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 2
+          }
         },
         {
           "pid": 8478205,
@@ -347,11 +790,27 @@
           "home": 1,
           "position": "C",
           "probability": {
-            "model": 0.186
+            "model": 0.186,
+            "ddh_style": 0.246
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 7,
+            "goals_per_game": 0.74,
+            "shots": 24,
+            "shots_per_game": 2.4,
+            "shooting_pct": 29.2,
+            "toi_per_game": 14,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 3
+          }
         },
         {
           "pid": 8478206,
@@ -361,11 +820,27 @@
           "home": 1,
           "position": "R",
           "probability": {
-            "model": 0.159
+            "model": 0.159,
+            "ddh_style": 0.218
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 6,
+            "goals_per_game": 0.65,
+            "shots": 25,
+            "shots_per_game": 2.5,
+            "shooting_pct": 24.0,
+            "toi_per_game": 15,
+            "pp_toi_per_game": 1.8,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 4
+          }
         },
         {
           "pid": 8478207,
@@ -375,11 +850,27 @@
           "home": 1,
           "position": "D",
           "probability": {
-            "model": 0.132
+            "model": 0.132,
+            "ddh_style": 0.19
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 6,
+            "goals_per_game": 0.56,
+            "shots": 26,
+            "shots_per_game": 2.6,
+            "shooting_pct": 23.1,
+            "toi_per_game": 16,
+            "pp_toi_per_game": 1.0,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 5
+          }
         },
         {
           "pid": 8478208,
@@ -389,11 +880,27 @@
           "home": 1,
           "position": "D",
           "probability": {
-            "model": 0.105
+            "model": 0.105,
+            "ddh_style": 0.162
           },
           "pick": false,
           "scored": null,
-          "goals": null
+          "goals": null,
+          "style": {
+            "gp": 10,
+            "goals": 5,
+            "goals_per_game": 0.47,
+            "shots": 27,
+            "shots_per_game": 2.7,
+            "shooting_pct": 18.5,
+            "toi_per_game": 17,
+            "pp_toi_per_game": 1.4,
+            "opp_ga_per_game": 3.05,
+            "home_away": "HOME"
+          },
+          "rank": {
+            "hch_style": 6
+          }
         }
       ],
       "pick": {
@@ -410,7 +917,62 @@
       "top3_hits": null,
       "random": null,
       "n": null,
-      "scorers": null
+      "scorers": null,
+      "method_picks": {
+        "model": {
+          "pids": [
+            8478201
+          ],
+          "name": "Jack Eichel",
+          "team": "VGK",
+          "opp": "SEA",
+          "home": 1,
+          "probability": 0.294,
+          "top3": [
+            8478201,
+            8478202,
+            8478203
+          ],
+          "hit": null,
+          "top3_hits": null
+        },
+        "ddh_style": {
+          "pids": [
+            8478202
+          ],
+          "name": "Sidney Crosby",
+          "team": "PIT",
+          "opp": "BUF",
+          "home": 1,
+          "probability": 0.33,
+          "top3": [
+            8478202,
+            8478203,
+            8478204
+          ],
+          "hit": null,
+          "top3_hits": null
+        },
+        "hch_style": {
+          "pids": [
+            8478203
+          ],
+          "name": "Aleksander Barkov",
+          "team": "FLA",
+          "opp": "CAR",
+          "home": 1,
+          "probability": null,
+          "rank": 1,
+          "goals_per_game": 0.92,
+          "top3": [
+            8478203,
+            8478204,
+            8478205
+          ],
+          "hit": null,
+          "top3_hits": null
+        }
+      }
     }
   ],
   "skipped": []
