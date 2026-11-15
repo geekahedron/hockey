@@ -133,22 +133,35 @@ def _round(value, places=4):
     return round(float(value), places)
 
 
+def _spec_by_id():
+    from job.score import METHODS
+    return {item["id"]: item for item in METHODS}
+
+
 def _method_catalog(days):
+    """Methods in first-seen order, with the current public label for known ids."""
     catalog = []
     seen = set()
+    specs = _spec_by_id()
     for day in days:
         for method in day.get("methods") or []:
             method_id = method.get("id")
             if not method_id or method_id in seen:
                 continue
             seen.add(method_id)
+            spec = specs.get(method_id) or {}
             catalog.append({
                 "id": method_id,
-                "label": method.get("label") or method_id,
-                "kind": method.get("kind") or "probability",
+                "label": spec.get("label") or method.get("label") or method_id,
+                "kind": spec.get("kind") or method.get("kind") or "probability",
             })
     if "model" not in seen:
-        catalog.insert(0, {"id": "model", "label": "Model", "kind": "probability"})
+        spec = specs.get("model") or {}
+        catalog.insert(0, {
+            "id": "model",
+            "label": spec.get("label") or "Logistic model (player form + matchup)",
+            "kind": spec.get("kind") or "probability",
+        })
     return catalog
 
 
@@ -276,6 +289,158 @@ def _season_for_method(days, method_id):
     return summary, out_days
 
 
+def _graded_hit(day, method_id, group_id):
+    """Return (hit, random) for one method and group, or (None, None)."""
+    for group in day.get("groups") or []:
+        if group_id is not None and group.get("id") != group_id:
+            continue
+        if group.get("status") != "graded" or group.get("hit") is None:
+            if group_id is not None:
+                return None, None
+            continue
+        if group_id is None:
+            continue
+        return group.get("hit"), group.get("random")
+    return None, None
+
+
+def _accumulate(dates, value_on):
+    """Running sum and rate. ``value_on(date)`` is (amount, count) or (None, 0)."""
+    total = 0.0
+    count = 0
+    started = False
+    sums = []
+    rates = []
+    for date in dates:
+        amount, n = value_on(date)
+        if amount is not None and n:
+            started = True
+            total += amount
+            count += n
+        if not started or not count:
+            sums.append(None)
+            rates.append(None)
+            continue
+        sums.append(_round(total))
+        rates.append(_round(total / float(count)))
+    return sums, rates
+
+
+def _chart_dates(by_method, methods, group_id=None):
+    found = []
+    seen = set()
+    for method in methods:
+        days = (by_method.get(method["id"]) or {}).get("days") or []
+        for day in days:
+            iso = day.get("date")
+            if not iso or iso in seen:
+                continue
+            if group_id is None:
+                if day.get("picks"):
+                    seen.add(iso)
+                    found.append(iso)
+                continue
+            hit, _random = _graded_hit(day, method["id"], group_id)
+            if hit is not None:
+                seen.add(iso)
+                found.append(iso)
+    found.sort()
+    return found
+
+
+def _group_ids(by_method):
+    found = []
+    seen = set()
+    for block in by_method.values():
+        for day in block.get("days") or []:
+            for group in day.get("groups") or []:
+                gid = group.get("id")
+                if gid is None or gid in seen:
+                    continue
+                seen.add(gid)
+                found.append(gid)
+    found.sort()
+    return found
+
+
+def build_charts(by_method, methods):
+    """Year-to-date hits and hit rate for every method, overall and per pick.
+
+    The random line is the cumulative share of the group who scored, which is
+    the hit rate of a random pick. It does not depend on the method.
+    """
+    model_days = {
+        day.get("date"): day
+        for day in (by_method.get("model") or {}).get("days") or []
+    }
+
+    def pack(dates, group_id):
+        series = []
+        for method in methods:
+            days = {
+                day.get("date"): day
+                for day in (by_method.get(method["id"]) or {}).get("days") or []
+            }
+
+            def value_on(date, _days=days, _method=method["id"]):
+                day = _days.get(date) or {}
+                if group_id is None:
+                    if not day.get("picks") or day.get("hits") is None:
+                        return None, 0
+                    return day["hits"], day["picks"]
+                hit, _random = _graded_hit(day, _method, group_id)
+                if hit is None:
+                    return None, 0
+                return hit, 1
+
+            hits, rate = _accumulate(dates, value_on)
+            series.append({
+                "id": method["id"],
+                "label": method["label"],
+                "kind": method.get("kind") or "probability",
+                "hits": hits,
+                "hit_rate": rate,
+            })
+
+        def random_on(date):
+            day = model_days.get(date) or {}
+            if group_id is None:
+                total = 0.0
+                n = 0
+                for group in day.get("groups") or []:
+                    if group.get("status") != "graded" or group.get("hit") is None:
+                        continue
+                    if group.get("random") is None:
+                        continue
+                    total += group["random"]
+                    n += 1
+                if not n:
+                    return None, 0
+                return total, n
+            _hit, random = _graded_hit(day, "model", group_id)
+            if random is None or _hit is None:
+                return None, 0
+            return random, 1
+
+        random_hits, random_rate = _accumulate(dates, random_on)
+        return {
+            "dates": dates,
+            "series": series,
+            "random_hits": random_hits,
+            "random_rate": random_rate,
+        }
+
+    overall_dates = _chart_dates(by_method, methods, None)
+    groups = []
+    for gid in _group_ids(by_method):
+        dates = _chart_dates(by_method, methods, gid)
+        block = pack(dates, gid)
+        block["id"] = gid
+        block["label"] = "Pick %s" % gid
+        groups.append(block)
+    return {"overall": pack(overall_dates, None), "groups": groups}
+
+
 def build_season(days):
     """Season tracker. The top-level summary is the model, and ``by_method`` grades each method."""
     season_name = None
@@ -297,6 +462,7 @@ def build_season(days):
         "summary": summary,
         "days": out_days,
         "by_method": by_method,
+        "charts": build_charts(by_method, catalog),
     }
 
 

@@ -8,21 +8,21 @@
   "methods": [
     {
       "id": "model",
-      "label": "Model",
+      "label": "Logistic model (player form + matchup)",
       "kind": "probability",
-      "description": "Logistic regression on shrunk NHL rates. Probability of at least one non-shootout goal."
+      "description": "Probability of at least one non-shootout goal. Shrunk player goals, shots, and ice time, plus the opponent, home or away, and rest."
     },
     {
       "id": "ddh_style",
-      "label": "DDH-style estimate",
+      "label": "Scoring-rate estimate",
       "kind": "probability",
-      "description": "Approximate chance of at least one goal, from public NHL rates. An estimate, not a third-party rating."
+      "description": "Even-strength and power-play scoring rates times expected ice time, adjusted for the opponent, home or away, and rest. An estimate from public NHL totals, not another site's rating."
     },
     {
       "id": "hch_style",
-      "label": "HCH-style",
+      "label": "Goals per game",
       "kind": "rank",
-      "description": "Ranking by this season's goals per game. Ties break toward the lower player id."
+      "description": "Ranked by this season's goals per game. Ties break toward the lower player id."
     }
   ],
   "groups": [
@@ -982,5 +982,5 @@
     }
   ],
   "skipped": [],
-  "graded_at": "2026-11-15T04:23:33+00:00"
+  "graded_at": "2026-11-15T04:56:41+00:00"
 }

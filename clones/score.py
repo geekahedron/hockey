@@ -14,8 +14,8 @@ Usage (from this directory, or as ``python clones/score.py``):
 - ``{"groups":{"1":[{"nhl_id","team_abbr","nhl_name"}]}}``
 
 The output is local. Do not put it in the publish directory. The daily job
-writes its own JSON, with the labels "DDH-style estimate" and "HCH-style".
-These are not a third-party site's percentages or ranks.
+writes its own JSON. These figures are not a third-party site's percentages
+or ranks.
 
 Requires Python 3.9+ and numpy.
 """

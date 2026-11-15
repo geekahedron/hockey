@@ -5,10 +5,11 @@ pipeline is not loaded. Feature construction is features.FeatureBuilder;
 this module does not change those formulas.
 
 Published players carry a probability object keyed by method id. "model"
-is the frozen logistic probability. "ddh_style" is the DDH-style estimate
-(also a probability). The HCH-style ranking lives on ``rank.hch_style`` and
-``style``, because it is not a probability. Neither extra method is another
-site's published number.
+is the frozen logistic probability. "ddh_style" is the scoring-rate estimate
+(also a probability). The goals-per-game ranking lives on ``rank.hch_style``
+and ``style``, because it is not a probability. Neither extra method is
+another site's published number. The public labels do not use those sites'
+names.
 """
 import datetime as dt
 import os
@@ -32,28 +33,30 @@ class ScoreError(Exception):
 METHODS = [
     {
         "id": "model",
-        "label": "Model",
+        "label": "Logistic model (player form + matchup)",
         "kind": "probability",
         "description": (
-            "Logistic regression on shrunk NHL rates. "
-            "Probability of at least one non-shootout goal."
+            "Probability of at least one non-shootout goal. "
+            "Shrunk player goals, shots, and ice time, plus the opponent, "
+            "home or away, and rest."
         ),
     },
     {
         "id": "ddh_style",
-        "label": "DDH-style estimate",
+        "label": "Scoring-rate estimate",
         "kind": "probability",
         "description": (
-            "Approximate chance of at least one goal, from public NHL rates. "
-            "An estimate, not a third-party rating."
+            "Even-strength and power-play scoring rates times expected ice time, "
+            "adjusted for the opponent, home or away, and rest. "
+            "An estimate from public NHL totals, not another site's rating."
         ),
     },
     {
         "id": "hch_style",
-        "label": "HCH-style",
+        "label": "Goals per game",
         "kind": "rank",
         "description": (
-            "Ranking by this season's goals per game. "
+            "Ranked by this season's goals per game. "
             "Ties break toward the lower player id."
         ),
     },

@@ -3,6 +3,7 @@ import json
 import os
 
 from job.publish import PublishError, assert_public
+from job.score import METHODS
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
@@ -53,10 +54,11 @@ def assert_day(day):
     assert day["status"] in ("pending", "partial", "graded")
     assert day["model"] == "logistic"
     labels = {method["id"]: method["label"] for method in day["methods"]}
-    assert [method["id"] for method in day["methods"]] == ["model", "ddh_style", "hch_style"]
-    assert labels["model"] == "Model"
-    assert labels["ddh_style"] == "DDH-style estimate"
-    assert labels["hch_style"] == "HCH-style"
+    assert [method["id"] for method in day["methods"]] == [method["id"] for method in METHODS]
+    for method in METHODS:
+        assert labels[method["id"]] == method["label"]
+        words = set(_words(method["label"]))
+        assert "ddh" not in words and "hch" not in words
     assert "groups" in day
     for group in day["groups"]:
         for key in ("id", "status", "players", "pick", "hit", "top3_hits", "random", "n", "scorers", "method_picks"):
@@ -83,6 +85,15 @@ def assert_season(season):
     assert season["summary"] == season["by_method"]["model"]["summary"]
     for method_id in ("model", "ddh_style", "hch_style"):
         assert season["by_method"][method_id]["summary"]["picks"] > 0
+    charts = season["charts"]
+    assert charts["overall"]["dates"]
+    assert [series["id"] for series in charts["overall"]["series"]] == ["model", "ddh_style", "hch_style"]
+    assert [series["label"] for series in charts["overall"]["series"]] == [method["label"] for method in METHODS]
+    assert len(charts["groups"]) == 3
+    for group in charts["groups"]:
+        assert group["label"].startswith("Pick ")
+        assert len(group["series"]) == 3
+        assert len(group["random_rate"]) == len(group["dates"])
     summary = season["summary"]
     for key in ("days", "picks", "hits", "hit_rate", "top3_hits", "top3_slots", "top3_rate", "random_baseline"):
         assert key in summary
@@ -108,13 +119,23 @@ def assert_index(index):
 
 
 def test_page_sources_do_not_name_other_sites():
-    for name in ("index.html", "app.js", "style.css"):
+    for name in ("app.js", "style.css"):
         text = open(os.path.join(WEB, name)).read()
         assert_clean(text, name)
-        # The page reads relative JSON only. The SVG namespace is the one http URL.
         for host in ("nhle.com", "rbi.digital", "api."):
             assert host not in text, name
         assert 'fetch("http' not in text and "fetch('http" not in text
+    html = open(os.path.join(WEB, "index.html")).read()
+    # The footnote may name the other sites. Method titles stay descriptive.
+    footnote = html.lower().replace("datadrivenhockey", " ").replace("hockeychallengehelper", " ")
+    assert_clean(footnote, "index.html")
+    assert "datadrivenhockey" in html.lower()
+    assert "hockeychallengehelper" in html.lower()
+    for host in ("nhle.com", "rbi.digital", "api."):
+        assert host not in html
+    for method in METHODS:
+        words = set(_words(method["label"]))
+        assert "ddh" not in words and "hch" not in words
 
 
 def test_fixture_site_schema():
