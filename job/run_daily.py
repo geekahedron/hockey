@@ -8,7 +8,12 @@ Logs go to --log (default: no file). The log path must not sit in the
 publish directory or under public_html. The runner never submits a pick.
 
 Exit status is 0 on success and 1 on a refresh, groups, or publish error.
+75 means today's Tims lists are not posted yet: past days were still graded,
+today.json was not replaced with a new slate, and the caller should retry.
 A grade that is still pending is success: the slate is published either way.
+
+The run refreshes NHL results and grades every unfinished published day
+before it asks Tims for today. Grading math is unchanged.
 """
 import argparse
 import datetime as dt
@@ -115,6 +120,54 @@ def parse_args(argv):
     )
     parser.add_argument("--log", help="Append-only log file, outside the publish dir and the web root")
     return parser.parse_args(argv)
+
+
+# sysexits EX_TEMPFAIL. The hourly wrapper retries this, and does not treat it as a hard failure.
+NOT_READY = 75
+
+
+def _slate_not_ready(exc):
+    """True when Tims answered with a slate that is not today's lists yet."""
+    text = str(exc)
+    return (
+        "HockeyPlayers slate is for" in text
+        or "HockeyPlayers response had no games" in text
+        or "HockeyPlayers response had no player sets" in text
+    )
+
+
+def _shown_date(publish_dir):
+    path = os.path.join(publish_dir, "today.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as handle:
+            return json.load(handle).get("date")
+    except (OSError, ValueError):
+        return None
+
+
+def _grade_published(publish_dir, getter, log):
+    """Grade unfinished days. Same apply_grade path as before, run first.
+
+    today.json is updated only when it already shows the day just graded,
+    so a missing morning slate leaves yesterday's graded file on the page.
+    """
+    shown = _shown_date(publish_dir)
+    for saved in list_days(publish_dir):
+        if not _needs_grade(saved):
+            continue
+        payload = getter(
+            "https://api-web.nhle.com/v1/score/%s" % saved["date"]
+        )
+        if payload is None:
+            log("grade skipped %s: score feed failed" % saved["date"])
+            continue
+        apply_grade(saved, payload)
+        publish_day(
+            publish_dir, saved, as_today=(saved.get("date") == shown)
+        )
+        log("graded %s -> %s" % (saved["date"], saved["status"]))
 
 
 def _needs_grade(day):
@@ -260,55 +313,47 @@ def run(argv=None, get_json=None, tims_source=None):
             added = refresh(when, raw_dir, get_json=getter, log=log)
             log("nhl refresh +%d games into %s" % (added, raw_dir))
 
-        existing = load_day(publish_dir, when.isoformat())
-        rescore = existing is None or existing.get("status") == "pending" or args.rescore
-        if rescore:
-            if args.groups:
-                source = FileGroupsSource(args.groups)
-            elif tims_source is not None:
-                source = tims_source
-            else:
-                source = TimsGroupsSource(publish_dir=publish_dir)
-            groups = source.fetch(when)
-            log("groups %s: %d groups" % (when.isoformat(), len(groups.get("groups") or [])))
-            schedule_payload = getter(
-                "https://api-web.nhle.com/v1/score/%s" % when.isoformat()
-            )
-            if schedule_payload is None:
-                log("schedule feed unavailable; using home/away from the groups file")
-                schedule_payload = {}
-            day = score_groups(
-                when,
-                groups,
-                schedule_map(schedule_payload),
-                clone_fetch=_clone_fetcher(getter, raw_dir),
-            )
-            publish_day(publish_dir, day, as_today=True)
-            log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))
-        else:
-            log("keeping graded slate %s" % when.isoformat())
-            publish_day(publish_dir, existing, as_today=True)
-
         if not args.no_grade:
-            for saved in list_days(publish_dir):
-                if not _needs_grade(saved):
-                    continue
-                payload = getter(
-                    "https://api-web.nhle.com/v1/score/%s" % saved["date"]
+            _grade_published(publish_dir, getter, log)
+
+        try:
+            existing = load_day(publish_dir, when.isoformat())
+            rescore = existing is None or existing.get("status") == "pending" or args.rescore
+            if rescore:
+                if args.groups:
+                    source = FileGroupsSource(args.groups)
+                elif tims_source is not None:
+                    source = tims_source
+                else:
+                    source = TimsGroupsSource(publish_dir=publish_dir)
+                groups = source.fetch(when)
+                log("groups %s: %d groups" % (when.isoformat(), len(groups.get("groups") or [])))
+                schedule_payload = getter(
+                    "https://api-web.nhle.com/v1/score/%s" % when.isoformat()
                 )
-                if payload is None:
-                    log("grade skipped %s: score feed failed" % saved["date"])
-                    continue
-                apply_grade(saved, payload)
-                publish_day(
-                    publish_dir, saved, as_today=(saved["date"] == when.isoformat())
+                if schedule_payload is None:
+                    log("schedule feed unavailable; using home/away from the groups file")
+                    schedule_payload = {}
+                day = score_groups(
+                    when,
+                    groups,
+                    schedule_map(schedule_payload),
+                    clone_fetch=_clone_fetcher(getter, raw_dir),
                 )
-                log("graded %s -> %s" % (saved["date"], saved["status"]))
-    except GroupsSourceError as exc:
-        # The slate was not written. Yesterday's JSON stays on disk.
-        log("groups: %s" % exc)
-        log("published JSON left unchanged")
-        return 1
+                publish_day(publish_dir, day, as_today=True)
+                log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))
+            else:
+                log("keeping graded slate %s" % when.isoformat())
+                publish_day(publish_dir, existing, as_today=True)
+        except GroupsSourceError as exc:
+            # Today's lists were not written. Graded days already published stay.
+            if _slate_not_ready(exc):
+                log("groups not ready: %s" % exc)
+                log("today.json left unchanged")
+                return NOT_READY
+            log("groups: %s" % exc)
+            log("published JSON left unchanged")
+            return 1
     except (RefreshError, PublishError, ScoreError, OSError) as exc:
         log("error: %s" % exc)
         return 1

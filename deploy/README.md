@@ -60,20 +60,32 @@ for local screenshots.
 
 ## Daily run
 
-The crontab line is `job/cron.example`. It grades any published day that is
-still pending, scores today, and syncs the JSON:
+The crontab line is `job/cron.example`. Paste this; the server clock can
+stay on MST:
 
 ```
-15 10 * * * TIMS_ENV=$HOME/tims-hockey/secrets/tims.env $HOME/tims-venv/bin/python $HOME/tims-hockey/job/run_daily.py --publish $HOME/tims-hockey/publish --log $HOME/tims-hockey/logs/daily.log && rsync -a --delete $HOME/tims-hockey/publish/ $HOME/public_html/tools/hockey/data/
+5 * * * * $HOME/tims-hockey/job/cron_run.sh
 ```
 
-The clock is the server's local time. 10:15 is a morning slot, after the
-day's groups are usually posted and before most games. One run is enough:
-the next morning grades last night and scores the new slate.
+`job/cron_run.sh` reads America/Toronto itself. From 03:00 through 13:59
+Toronto it refreshes NHL results, grades every unfinished published day,
+then asks Tims for today's lists. If those lists are not posted yet the job
+exits 75, leaves `today.json` on yesterday's graded slate, and the next hour
+tries again. Exit 0 or 75 rsyncs `publish/` to
+`public_html/tools/hockey/data/`. A hard error (exit 1) does not. `flock`
+keeps two runs from overlapping. Each invocation appends one line to
+`~/tims-hockey/logs/cron.log`.
 
-`TIMS_ENV` must be set for the live groups. `--groups FILE` still scores a
-local JSON file instead. Do not point `--groups` at a file inside
-`public_html`.
+One-time setup for the wrapper:
+
+```
+mkdir -p ~/tims-hockey/logs ~/public_html/tools/hockey/data
+chmod +x ~/tims-hockey/job/cron_run.sh
+```
+
+`TIMS_ENV` is set by the wrapper to `~/tims-hockey/secrets/tims.env`. The
+job still accepts `--groups FILE` for a local JSON file instead. Do not
+point `--groups` at a file inside `public_html`.
 
 Manual publish of the page itself, after a code change, is the three-file
 `cp` above. The cron does not copy HTML.

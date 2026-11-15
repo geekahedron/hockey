@@ -72,16 +72,18 @@ One run:
    with Cognito `REFRESH_TOKEN_AUTH`. Each player is matched to an NHL id by
    team abbreviation and jersey number (`NJ`/`TB`/`SJ`/`LA` map to
    `NJD`/`TBL`/`SJS`/`LAK`). The old px-api host is not used.
-3. Scores every available player with `logistic_json.predict_proba`. The
+3. Grades every published day whose games are now final, and writes those
+   day files plus `season.json`. A non-shootout goal counts. A group stays
+   pending until each of its teams is `OFF` or `FINAL`. This happens before
+   today's lists are requested, so a missing slate cannot block yesterday.
+4. Scores every available player with `logistic_json.predict_proba`. The
    joblib pipeline is not loaded. It then adds the scoring-rate estimate and
    the goals-per-game ranking from public NHL season totals
    (`clones/`, numpy only). Those totals stop at the day before the slate.
    The logistic probabilities, the model pick, and the player order are
-   computed first and are not rewritten.
-4. Grades every published day whose games are now final. A non-shootout goal
-   counts. A group stays pending until each of its teams is `OFF` or `FINAL`.
-5. Writes the publish directory: `today.json`, `days/YYYY-MM-DD.json`,
-   `days/index.json`, `season.json`.
+   computed first and are not rewritten. If Tims has not posted today's
+   lists, `today.json` stays on the previous slate and the process exits 75.
+5. Writes `today.json` when today's lists were scored.
 
 The recorded pick is whoever the model ranked first that morning (ties
 share it, and the hit is the fraction who scored). Top-3 hits are how many
@@ -119,7 +121,13 @@ and are not scored.
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
 `--no-grade`, `--rescore`, `--backfill-clones`, `--relabel`, `--log`. A graded
 day is not scored again unless you pass `--rescore`. A still-pending day is
-scored again, then graded.
+graded if its games are final, and scored again while it is still pending.
+
+The run refreshes NHL results and grades every unfinished published day
+before it asks for today's lists. Exit 0 is a full success. Exit 1 is a
+refresh, publish, or other groups error. Exit 75 means today's lists are
+not posted yet: past days were still graded, `today.json` was not replaced
+with a new slate, and an hourly caller should retry.
 
 ## After a name or chart change
 
@@ -177,10 +185,14 @@ published JSON in place.
 
 ## Server layout and cron
 
-See `deploy/README.md`. The cron line:
+See `deploy/README.md`. Bluehost cron is MST and may ignore `CRON_TZ`, so
+the clock lives in `job/cron_run.sh`. It runs the job only when the
+America/Toronto hour is 03 through 13, skips when `today.json` is already
+today and not still pending, and retries a not-ready slate (exit 75) on the
+next hour. Grading still publishes, and that case is rsynced.
 
 ```
-15 10 * * * TIMS_ENV=$HOME/tims-hockey/secrets/tims.env $HOME/tims-venv/bin/python $HOME/tims-hockey/job/run_daily.py --publish $HOME/tims-hockey/publish --log $HOME/tims-hockey/logs/daily.log && rsync -a --delete $HOME/tims-hockey/publish/ $HOME/public_html/tools/hockey/data/
+5 * * * * $HOME/tims-hockey/job/cron_run.sh
 ```
 
 Publish-dir layout after a run:
