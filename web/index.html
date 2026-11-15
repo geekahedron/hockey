@@ -11,7 +11,7 @@
 <header class="top">
   <a class="brand" href="../../">Geekahedron</a>
   <h1>Tims Hockey Challenge</h1>
-  <p class="sub">Three groups a day. The model bar is the chance of at least one non-shootout goal. The menu switches to the other two public-stats methods.</p>
+  <p class="sub">Three groups a day. Switch the menu between the logistic model, a scoring-rate estimate, and a goals-per-game ranking.</p>
   <div class="page-modes">
     <button type="button" class="ghost on" data-view="today" aria-pressed="true">Today</button>
     <button type="button" class="ghost" data-view="past" aria-pressed="false">Past days</button>
@@ -27,7 +27,7 @@
   <section id="view-past" hidden></section>
   <section id="view-season" hidden></section>
 </main>
-<p class="foot">The model is a logistic regression on NHL box scores, updated once a day. The other two columns are separate estimates from public NHL stats, not another site's ratings. Not affiliated with Tim Hortons or the NHL.</p>
+<p class="foot">The logistic model uses shrunk player goals, shots, and ice time, plus the opponent, home or away, and rest. The scoring-rate estimate and the goals-per-game ranking are separate calculations from public NHL stats. Inspired by methods used by other public Hockey Challenge helper sites, including DataDrivenHockey and HockeyChallengeHelper. They are not those sites' ratings. Not affiliated with Tim Hortons or the NHL.</p>
 <script src="app.js"></script>
 </body>
 </html>

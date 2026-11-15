@@ -81,13 +81,26 @@
   function methodsOf(doc) {
     var list = doc && doc.methods && doc.methods.length ? doc.methods.slice() : [];
     if (!list.some(function (m) { return m.id === "model"; })) {
-      list.unshift({id: "model", label: "Model"});
+      list.unshift({
+        id: "model",
+        label: "Logistic model (player form + matchup)",
+        kind: "probability"
+      });
     }
     return list;
   }
 
   function knownMethods() {
-    return methodsOf(state.today || state.season || {methods: []});
+    if (state.season && state.season.methods && state.season.methods.length) {
+      return methodsOf(state.season);
+    }
+    return methodsOf(state.today || {methods: []});
+  }
+
+  function displayMethods(doc) {
+    var byId = {};
+    knownMethods().forEach(function (method) { byId[method.id] = method; });
+    return methodsOf(doc).map(function (method) { return byId[method.id] || method; });
   }
 
   function pOf(player, method) {
@@ -98,8 +111,8 @@
 
   function methodMeta(doc) {
     var list = methodsOf(doc || state.today || state.season || {});
-    var known = methodsOf(state.today || state.season || {});
-    var pool = list.concat(known);
+    var known = knownMethods();
+    var pool = known.concat(list);
     for (var i = 0; i < pool.length; i++) {
       if (pool[i].id === state.method) return pool[i];
     }
@@ -305,7 +318,7 @@
 
   function renderSummary(day, mode) {
     var wrap = h("div", {class: "summary"});
-    var methods = methodsOf(day);
+    var methods = displayMethods(day);
     var selected = methodMeta(day);
     var multi = methods.length > 1;
     (day.groups || []).forEach(function (group) {
@@ -396,7 +409,7 @@
   }
 
   function renderCompare(day) {
-    var methods = methodsOf(day);
+    var methods = displayMethods(day);
     var placeholder = methods.length < 2;
     var head = [h("th", {text: "Group"}), h("th", {text: "Player"}), h("th", {text: "Team"})];
     methods.forEach(function (method) { head.push(h("th", {text: method.label})); });
@@ -503,39 +516,61 @@
     view.appendChild(renderGroups(day, "past"));
   }
 
-  function chart(days) {
-    var pts = (days || []).filter(function (d) {
-      return d.picks > 0 && typeof d.running_hit_rate === "number";
-    });
+  var SERIES_COLORS = ["#ff8c1a", "#7eb6ff", "#6fd389"];
+
+  function seriesColor(index) {
+    return SERIES_COLORS[index % SERIES_COLORS.length];
+  }
+
+  function lineChart(spec) {
     var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 680 240");
     svg.setAttribute("role", "img");
-    if (!pts.length) {
+    var dates = spec.dates || [];
+    var series = spec.series || [];
+    var baseline = spec.baseline || {values: []};
+    var rate = spec.mode !== "hits";
+    if (!dates.length) {
       svg.setAttribute("aria-label", "No graded days yet");
       return svg;
     }
-    var last = pts[pts.length - 1];
-    svg.setAttribute("aria-label",
-      "Running hit rate " + pct(last.running_hit_rate) +
-      ", random baseline " + pct(last.running_random));
     var w = 680, h = 240;
     var pad = {l: 42, r: 16, t: 16, b: 32};
     var innerW = w - pad.l - pad.r;
     var innerH = h - pad.t - pad.b;
+    var yMax = rate ? 1 : 0;
+    function consider(values) {
+      (values || []).forEach(function (value) {
+        if (typeof value === "number" && value > yMax) yMax = value;
+      });
+    }
+    series.forEach(function (item) { consider(item.values); });
+    consider(baseline.values);
+    if (!rate) {
+      var step = Math.max(1, Math.ceil((yMax || 1) / 4));
+      yMax = Math.max(step, Math.ceil((yMax || 1) / step) * step);
+    }
     function x(i) {
-      if (pts.length === 1) return pad.l + innerW / 2;
-      return pad.l + (innerW * i) / (pts.length - 1);
+      if (dates.length === 1) return pad.l + innerW / 2;
+      return pad.l + (innerW * i) / (dates.length - 1);
     }
     function y(v) {
-      var clamped = Math.max(0, Math.min(1, v || 0));
-      return pad.t + innerH * (1 - clamped);
+      var top = rate ? 1 : yMax;
+      var clamped = Math.max(0, v || 0);
+      if (rate) clamped = Math.min(1, clamped);
+      return pad.t + innerH * (1 - clamped / top);
     }
     function el(name, attrs) {
       var node = document.createElementNS("http://www.w3.org/2000/svg", name);
       Object.keys(attrs).forEach(function (key) { node.setAttribute(key, attrs[key]); });
       return node;
     }
-    [0, 0.25, 0.5, 0.75, 1].forEach(function (tick) {
+    var ticks = rate ? [0, 0.25, 0.5, 0.75, 1] : [];
+    if (!rate) {
+      var tickStep = yMax / 4;
+      for (var t = 0; t <= 4; t++) ticks.push(tickStep * t);
+    }
+    ticks.forEach(function (tick) {
       svg.appendChild(el("line", {
         x1: pad.l, x2: w - pad.r, y1: y(tick), y2: y(tick),
         stroke: "#24467d", "stroke-width": "1"
@@ -544,38 +579,101 @@
         x: 4, y: y(tick) + 4, fill: "#9fb0cc", "font-size": "11",
         "font-family": "system-ui, sans-serif"
       }));
-      svg.lastChild.textContent = Math.round(tick * 100) + "%";
+      svg.lastChild.textContent = rate ? Math.round(tick * 100) + "%" : String(Math.round(tick * 10) / 10);
     });
-    function path(key) {
-      return pts.map(function (d, i) {
-        var v = d[key];
-        if (typeof v !== "number") return null;
-        return (i === 0 ? "M" : "L") + x(i).toFixed(1) + " " + y(v).toFixed(1);
-      }).filter(Boolean).join(" ");
+    function path(values) {
+      var cmd = "";
+      var pen = false;
+      (values || []).forEach(function (value, i) {
+        if (typeof value !== "number") {
+          pen = false;
+          return;
+        }
+        cmd += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(value).toFixed(1);
+        pen = true;
+      });
+      return cmd;
     }
-    svg.appendChild(el("path", {
-      d: path("running_random"), fill: "none", stroke: "#9fb0cc",
-      "stroke-width": "2", "stroke-dasharray": "4 4"
-    }));
-    svg.appendChild(el("path", {
-      d: path("running_hit_rate"), fill: "none", stroke: "#ff8c1a", "stroke-width": "2.5"
-    }));
-    pts.forEach(function (d, i) {
-      svg.appendChild(el("circle", {
-        cx: x(i).toFixed(1), cy: y(d.running_hit_rate).toFixed(1), r: "3.5", fill: "#ff8c1a"
+    if (baseline.values) {
+      svg.appendChild(el("path", {
+        d: path(baseline.values), fill: "none", stroke: "#9fb0cc",
+        "stroke-width": "2", "stroke-dasharray": "4 4"
       }));
+    }
+    series.forEach(function (item) {
+      svg.appendChild(el("path", {
+        d: path(item.values), fill: "none", stroke: item.color, "stroke-width": "2.5"
+      }));
+      (item.values || []).forEach(function (value, i) {
+        if (typeof value !== "number") return;
+        svg.appendChild(el("circle", {
+          cx: x(i).toFixed(1), cy: y(value).toFixed(1), r: "3.2", fill: item.color
+        }));
+      });
     });
-    [0, Math.floor((pts.length - 1) / 2), pts.length - 1].forEach(function (i) {
-      if (pts.length > 1 && i === Math.floor((pts.length - 1) / 2) && pts.length < 3) return;
+    [0, Math.floor((dates.length - 1) / 2), dates.length - 1].forEach(function (i) {
+      if (dates.length > 1 && i === Math.floor((dates.length - 1) / 2) && dates.length < 3) return;
       var label = el("text", {
         x: x(i), y: h - 8, fill: "#9fb0cc", "font-size": "11",
-        "text-anchor": i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle",
+        "text-anchor": i === 0 ? "start" : i === dates.length - 1 ? "end" : "middle",
         "font-family": "system-ui, sans-serif"
       });
-      label.textContent = pts[i].date.slice(5);
+      label.textContent = String(dates[i] || "").slice(5);
       svg.appendChild(label);
     });
+    var bits = series.map(function (item) {
+      var last = null;
+      (item.values || []).forEach(function (value) {
+        if (typeof value === "number") last = value;
+      });
+      if (last == null) return null;
+      return item.label + " " + (rate ? pct(last) : String(last));
+    }).filter(Boolean);
+    svg.setAttribute("aria-label", (spec.title || "Season") + ". " + bits.join(", "));
     return svg;
+  }
+
+  function chartSpec(block, mode) {
+    return {
+      title: mode === "hits" ? "Cumulative hits" : "Hit rate",
+      dates: block.dates || [],
+      mode: mode,
+      series: (block.series || []).map(function (item, index) {
+        return {
+          label: item.label,
+          color: seriesColor(index),
+          values: mode === "hits" ? item.hits : item.hit_rate
+        };
+      }),
+      baseline: {
+        label: "Random baseline",
+        values: mode === "hits" ? block.random_hits : block.random_rate
+      }
+    };
+  }
+
+  function chartLegend(block) {
+    var bits = (block.series || []).map(function (item, index) {
+      return h("span", null,
+        h("i", {class: "swatch", style: "background:" + seriesColor(index)}),
+        item.label
+      );
+    });
+    bits.push(h("span", null, h("i", {class: "swatch dash"}), "Random baseline"));
+    return h("div", {class: "legend"}, bits);
+  }
+
+  function chartPair(block) {
+    return h("div", {class: "chart-grid"},
+      h("div", null,
+        h("p", {class: "muted small chart-title", text: "Hit rate"}),
+        h("div", {class: "chart-wrap"}, lineChart(chartSpec(block, "rate")))
+      ),
+      h("div", null,
+        h("p", {class: "muted small chart-title", text: "Cumulative hits"}),
+        h("div", {class: "chart-wrap"}, lineChart(chartSpec(block, "hits")))
+      )
+    );
   }
 
   function renderSeason() {
@@ -608,7 +706,7 @@
     view.appendChild(h("section", {class: "card"},
       h("div", {class: "dayhead"},
         h("h2", {text: (season.season || "Season") + " tracker"}),
-        h("p", {class: "muted", text: "Running results for the " + selected.label + " pick. Each method is graded on its own morning pick."})),
+        h("p", {class: "muted", text: "Each method is graded on its own morning pick. The charts are year to date."})),
       compare,
       h("div", {class: "stats"},
         h("div", {class: "stat"}, h("b", {text: pct(sum.hit_rate)}), h("span", {text: "Hit rate"})),
@@ -616,11 +714,20 @@
         h("div", {class: "stat"}, h("b", {text: pct(sum.top3_rate)}), h("span", {text: "Top 3 scored"})),
         h("div", {class: "stat"}, h("b", {text: pct(sum.random_baseline)}), h("span", {text: "Random baseline"}))
       ),
-      h("div", {class: "chart-wrap"}, chart(viewSeason.days)),
-      h("div", {class: "legend"},
-        h("span", null, h("i", {class: "swatch model"}), "Running hit rate"),
-        h("span", null, h("i", {class: "swatch random"}), "Random baseline"))
+      season.charts && season.charts.overall
+        ? h("div", null, chartLegend(season.charts.overall), chartPair(season.charts.overall))
+        : h("p", {class: "muted", text: "Year-to-date charts appear after the season file is rebuilt."})
     ));
+    if (season.charts && season.charts.groups && season.charts.groups.length) {
+      view.appendChild(h("h2", {class: "section-title", text: "By pick"}));
+      season.charts.groups.forEach(function (group) {
+        view.appendChild(h("section", {class: "card"},
+          h("h2", {text: group.label || ("Pick " + group.id)}),
+          h("p", {class: "muted small", text: "Same three methods, this pick only, with this pick's random baseline."}),
+          chartPair(group)
+        ));
+      });
+    }
 
     var valueHeader = kindOf(selected) === "rank" ? "Goals/game" : "Probability";
     var body = document.createElement("tbody");

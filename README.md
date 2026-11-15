@@ -7,11 +7,18 @@ The goal model in `model/` is frozen. `model/logistic_json.py` plus
 pipeline. This tool does not change features, training, or the scoring math.
 See `model/README.md` for how the model was built.
 
-The page shows this model's probability that a player scores at least one
-non-shootout goal. Two more columns are estimates built from public NHL
-stats: a **DDH-style estimate** (a probability) and an **HCH-style** ranking
-(this season's goals per game). They are not another site's percentages,
-ranks, or picks.
+The page shows three methods, named for what they use:
+
+- **Logistic model (player form + matchup)**. Shrunk goals, shots, and ice
+  time, plus the opponent, home or away, and rest. This is the frozen model.
+- **Scoring-rate estimate**. Even-strength and power-play scoring rates times
+  expected ice time, adjusted for the opponent, home or away, and rest.
+- **Goals per game**. This season's goals per game, highest first.
+
+The second and third are inspired by methods used by other public Hockey
+Challenge helper sites, including DataDrivenHockey and HockeyChallengeHelper.
+They are not those sites' ratings. The public names do not use those sites'
+initials.
 
 ## Page
 
@@ -24,14 +31,13 @@ reads JSON:
 | `data/today.json` | Today's three groups. Players sorted by the selected method, a bar per player, team, opponent, home or away, top pick highlighted. The summary lists each method's leader. |
 | `data/days/index.json` | The date list. |
 | `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. |
-| `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. The top-level summary is the model. `by_method` repeats it for each method. |
+| `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. `charts` is the year-to-date hit rate and cumulative hits for all three methods, plus the same pair of charts for each pick. |
 
-Views are Today, Past days, and Season. The method menu lists Model, the
-DDH-style estimate, and HCH-style. The compare table on Today has a column
-per method. A probability method is a number on each player at
-`probability.<id>` (0 to 1). A ranking method is `rank.<id>` (1 is first)
-plus `style` (goals per game and the other public season totals). The page
-does not fetch anything else.
+Views are Today, Past days, and Season. The method menu lists the three
+names above. The compare table on Today has a column per method. A
+probability method is a number on each player at `probability.<id>` (0 to
+1). The goals-per-game method is `rank.<id>` (1 is first) plus `style`. The
+page does not fetch anything else. The season charts read `season.json`.
 
 Open it from a local server (fetch does not work from `file://`):
 
@@ -67,8 +73,8 @@ One run:
    team abbreviation and jersey number (`NJ`/`TB`/`SJ`/`LA` map to
    `NJD`/`TBL`/`SJS`/`LAK`). The old px-api host is not used.
 3. Scores every available player with `logistic_json.predict_proba`. The
-   joblib pipeline is not loaded. It then adds the DDH-style estimate and
-   the HCH-style ranking from public NHL season totals
+   joblib pipeline is not loaded. It then adds the scoring-rate estimate and
+   the goals-per-game ranking from public NHL season totals
    (`clones/`, numpy only). Those totals stop at the day before the slate.
    The logistic probabilities, the model pick, and the player order are
    computed first and are not rewritten.
@@ -111,35 +117,44 @@ The Tims adapter also accepts the `pickGroups` shape in
 and are not scored.
 
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
-`--no-grade`, `--rescore`, `--backfill-clones`, `--log`. A graded day is not
-scored again unless you pass `--rescore`. A still-pending day is scored
-again, then graded.
+`--no-grade`, `--rescore`, `--backfill-clones`, `--relabel`, `--log`. A graded
+day is not scored again unless you pass `--rescore`. A still-pending day is
+scored again, then graded.
 
-## Backfill on the host
+## After a name or chart change
 
-Days published before the two extra columns existed do not have them. This
-does not deploy the page and does not rescore the logistic model. It does
-not need Tims credentials. It does need network access to `api.nhle.com` and
-`api-web.nhle.com`. Run it from the git checkout, then rsync the JSON the
-same way the cron does. Copy `web/` by hand only when you want the new page.
+`--relabel` rewrites the public method names on days already in the publish
+directory and rebuilds `season.json`, including the year-to-date charts. It
+does not rescore the logistic model and it does not use the network.
 
 ```
 cd ~/tims-hockey
 git pull
 ~/tims-venv/bin/python job/run_daily.py \
   --publish ~/tims-hockey/publish \
-  --backfill-clones \
-  --log ~/tims-hockey/logs/backfill.log
+  --relabel \
+  --log ~/tims-hockey/logs/relabel.log
 rsync -a --delete ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
 ```
 
-That walks every `days/YYYY-MM-DD.json` from 2026-11-02 onward. `--backfill-from`
-and `--backfill-to` narrow the window. A day that fails is left as it was;
-the command exits 1 if any day failed, and rerunning it is safe. Each graded
-day then carries hits and picks for all three methods in `season.json`.
-The morning cron does not need the flag: a new slate is scored with all
-three methods, and grading fills the extra hits from the picks stored that
-morning.
+Copy `web/index.html`, `web/app.js`, and `web/style.css` into
+`~/public_html/tools/hockey/` when the page itself should change. The cron
+does not copy HTML.
+
+If a day file does not yet have the scoring-rate estimate and the
+goals-per-game ranking, run `--backfill-clones` first. That walks every
+`days/YYYY-MM-DD.json` from 2026-11-02 onward, using public NHL totals
+through the day before each slate. It does not rescore the logistic model
+and it does not need Tims credentials. `--backfill-from` and `--backfill-to`
+narrow the window. A failed day is left as it was; exit 1 means at least one
+day failed, and rerunning is safe.
+
+```
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-clones \
+  --log ~/tims-hockey/logs/backfill.log
+```
 
 ## Secrets
 

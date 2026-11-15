@@ -116,8 +116,8 @@ def test_run_scores_and_then_grades(tmp_path, monkeypatch):
         assert today["date"] == "2026-11-14"
         assert today["status"] == "pending"
         assert [m["id"] for m in today["methods"]] == ["model", "ddh_style", "hch_style"]
-        assert today["methods"][1]["label"] == "DDH-style estimate"
-        assert today["methods"][2]["label"] == "HCH-style"
+        assert today["methods"][1]["label"] == "Scoring-rate estimate"
+        assert today["methods"][2]["label"] == "Goals per game"
         by_name = {}
         for group in today["groups"]:
             assert group["players"]

@@ -192,8 +192,9 @@ def test_attach_does_not_change_the_model(tmp_path, monkeypatch):
 
 
 def test_public_copy_allows_the_method_labels_only():
-    assert_public({"label": "DDH-style estimate", "id": "ddh_style"})
-    assert_public({"label": "HCH-style", "id": "hch_style"})
+    assert_public({"label": "Scoring-rate estimate", "id": "ddh_style"})
+    assert_public({"label": "Goals per game", "id": "hch_style"})
+    assert_public({"label": "Logistic model (player form + matchup)", "id": "model"})
     with pytest.raises(PublishError):
         assert_public({"hch": 1})
     with pytest.raises(PublishError):
@@ -230,7 +231,8 @@ def test_backfill_adds_columns_without_rescoring_the_model(tmp_path, monkeypatch
         assert code == 0
         saved = json.load(open(os.path.join(publish, "days", "2026-11-08.json")))
         assert model_snapshot(saved) == before
-        assert saved["methods"][1]["label"] == "DDH-style estimate"
+        assert saved["methods"][1]["label"] == "Scoring-rate estimate"
+        assert saved["methods"][2]["label"] == "Goals per game"
         assert saved["groups"][0]["players"][0]["probability"]["ddh_style"] > 0
         assert "hch_style" in saved["groups"][0]["players"][0]["rank"]
         assert saved["groups"][0]["pick"] == before["groups"][0]["pick"]
@@ -256,3 +258,124 @@ def test_feature_fetch_stops_at_the_morning_before_the_slate():
     assert "gameTypeId" in joined
     assert "api.nhle.com/stats/rest" in joined
     assert "api-web.nhle.com" in joined
+
+
+def _chart_group(gid, model_hit, rate_hit, rank_hit, random, scored=True):
+    status = "graded" if scored else "pending"
+    hit = (lambda value: value if scored else None)
+    return {
+        "id": gid,
+        "status": status,
+        "players": [{"pid": 1, "name": "A", "pick": True}],
+        "pick": {"name": "A", "pids": [1], "probability": 0.2},
+        "hit": hit(model_hit),
+        "top3_hits": 1 if scored else None,
+        "random": random if scored else None,
+        "n": 1,
+        "scorers": ["A"] if scored and model_hit else [],
+        "method_picks": {
+            "model": {"name": "A", "pids": [1], "probability": 0.2, "hit": hit(model_hit), "top3_hits": 1 if scored else None},
+            "ddh_style": {"name": "B", "pids": [2], "probability": 0.3, "hit": hit(rate_hit), "top3_hits": 0 if scored else None},
+            "hch_style": {"name": "C", "pids": [3], "hit": hit(rank_hit), "top3_hits": 0 if scored else None, "goals_per_game": 0.5, "rank": 1},
+        },
+    }
+
+
+def test_charts_are_cumulative_for_every_method_and_pick():
+    from job.publish import build_season
+    from job.score import METHODS
+
+    def day(iso, rows, status="graded"):
+        return {
+            "date": iso,
+            "status": status,
+            "season": "2026-27",
+            "model": "logistic",
+            "methods": [
+                {"id": "model", "label": "old model"},
+                {"id": "ddh_style", "label": "old rate"},
+                {"id": "hch_style", "label": "old rank"},
+            ],
+            "groups": rows,
+        }
+
+    season = build_season([
+        day("2026-11-02", [
+            _chart_group(1, 1, 0, 1, 0.5),
+            _chart_group(2, 0, 1, 0, 0.25),
+        ]),
+        day("2026-11-03", [
+            _chart_group(1, 0, 1, 0, 0.2),
+            _chart_group(2, 1, 1, 1, 0.4),
+        ]),
+        day("2026-11-04", [
+            _chart_group(1, None, None, None, None, scored=False),
+            _chart_group(2, None, None, None, None, scored=False),
+        ], status="pending"),
+    ])
+    labels = {method["id"]: method["label"] for method in season["methods"]}
+    assert labels["model"] == METHODS[0]["label"]
+    assert labels["ddh_style"] == "Scoring-rate estimate"
+    assert labels["hch_style"] == "Goals per game"
+    for label in labels.values():
+        words = set(part.strip("()").lower() for part in label.replace("-", " ").split())
+        assert "ddh" not in words and "hch" not in words
+    overall = season["charts"]["overall"]
+    assert overall["dates"] == ["2026-11-02", "2026-11-03"]
+    by_id = {series["id"]: series for series in overall["series"]}
+    assert by_id["model"]["hits"] == [1.0, 2.0]
+    assert by_id["model"]["hit_rate"] == [0.5, 0.5]
+    assert by_id["ddh_style"]["hits"] == [1.0, 3.0]
+    assert by_id["ddh_style"]["hit_rate"] == [0.5, 0.75]
+    assert by_id["hch_style"]["hits"] == [1.0, 2.0]
+    assert overall["random_hits"] == [0.75, 1.35]
+    assert overall["random_rate"] == [0.375, 0.3375]
+    assert season["summary"]["hits"] == by_id["model"]["hits"][-1]
+    pick1 = next(group for group in season["charts"]["groups"] if group["id"] == 1)
+    assert pick1["label"] == "Pick 1"
+    series = {item["id"]: item for item in pick1["series"]}
+    assert series["model"]["hits"] == [1.0, 1.0]
+    assert series["model"]["hit_rate"] == [1.0, 0.5]
+    assert series["ddh_style"]["hits"] == [0.0, 1.0]
+    assert series["hch_style"]["hits"] == [1.0, 1.0]
+    assert pick1["random_hits"] == [0.5, 0.7]
+    assert pick1["random_rate"] == [0.5, 0.35]
+
+
+def test_relabel_keeps_model_results(tmp_path):
+    from job.publish import publish_day
+    from job.run_daily import run
+
+    publish = str(tmp_path / "publish")
+    day = {
+        "schema": 1,
+        "date": "2026-11-02",
+        "status": "graded",
+        "generated_at": "2026-11-02T10:15:00-05:00",
+        "season": "2026-27",
+        "model": "logistic",
+        "methods": [{"id": "model", "label": "Model", "kind": "probability"}],
+        "groups": [{
+            "id": 1,
+            "status": "graded",
+            "players": [{
+                "pid": 1, "name": "A", "team": "EDM", "opp": "SJS", "home": 1,
+                "position": "C", "probability": {"model": 0.2}, "pick": True,
+                "scored": 1, "goals": 1,
+            }],
+            "pick": {"name": "A", "pids": [1], "probability": 0.2, "team": "EDM", "opp": "SJS", "home": 1},
+            "hit": 1, "top3_hits": 1, "random": 1, "n": 1, "scorers": ["A"],
+        }],
+        "skipped": [],
+    }
+    publish_day(publish, day, as_today=True)
+    code = run(["--publish", publish, "--relabel", "--no-refresh"], get_json=lambda url: {})
+    assert code == 0
+    saved = json.load(open(os.path.join(publish, "days", "2026-11-02.json")))
+    assert saved["methods"][0]["label"] == "Logistic model (player form + matchup)"
+    assert saved["groups"][0]["players"][0]["probability"]["model"] == 0.2
+    assert saved["groups"][0]["hit"] == 1
+    season = json.load(open(os.path.join(publish, "season.json")))
+    assert season["charts"]["overall"]["series"][0]["label"] == saved["methods"][0]["label"]
+    assert season["charts"]["groups"][0]["label"] == "Pick 1"
+    assert season["charts"]["overall"]["series"][0]["hits"] == [1.0]

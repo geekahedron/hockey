@@ -105,6 +105,14 @@ def parse_args(argv):
         "--backfill-to",
         help="Last slate date for --backfill-clones (default: every later published day)",
     )
+    parser.add_argument(
+        "--relabel",
+        action="store_true",
+        help=(
+            "Rewrite method labels on published days and rebuild season.json, "
+            "including the year-to-date charts. Does not rescore and does not use the network."
+        ),
+    )
     parser.add_argument("--log", help="Append-only log file, outside the publish dir and the web root")
     return parser.parse_args(argv)
 
@@ -141,6 +149,46 @@ def _clone_fetcher(getter, raw_dir):
             save_cache(path, cache)
 
     return clone_fetch
+
+
+def relabel_days(publish_dir, log):
+    """Refresh public method names and rebuild the season charts.
+
+    Probabilities, picks, and hits stay as they were. Days that do not yet
+    have the extra methods are left without them; run --backfill-clones for that.
+    """
+    from job.score import METHODS
+
+    specs = {item["id"]: item for item in METHODS}
+    today_date = None
+    today_path = os.path.join(publish_dir, "today.json")
+    if os.path.exists(today_path):
+        with open(today_path) as handle:
+            today_date = json.load(handle).get("date")
+    updated = 0
+    for saved in list_days(publish_dir):
+        before = model_snapshot(saved)
+        methods = []
+        for method in saved.get("methods") or []:
+            spec = specs.get(method.get("id"))
+            if not spec:
+                methods.append(method)
+                continue
+            updated_method = dict(method)
+            updated_method["label"] = spec["label"]
+            updated_method["kind"] = spec.get("kind") or updated_method.get("kind") or "probability"
+            if spec.get("description"):
+                updated_method["description"] = spec["description"]
+            methods.append(updated_method)
+        saved["methods"] = methods
+        if model_snapshot(saved) != before:
+            log("relabel refused %s: model fields changed" % saved.get("date"))
+            continue
+        publish_day(publish_dir, saved, as_today=(saved.get("date") == today_date))
+        updated += 1
+        log("relabel %s" % saved.get("date"))
+    log("relabel updated %d" % updated)
+    return 0
 
 
 def backfill_clones(publish_dir, getter, raw_dir, log, start, end):
@@ -199,6 +247,9 @@ def run(argv=None, get_json=None, tims_source=None):
         features.RAW = raw_dir
 
     try:
+        if args.relabel:
+            return relabel_days(publish_dir, log)
+
         if args.backfill_clones:
             failed = backfill_clones(
                 publish_dir, getter, raw_dir, log, args.backfill_from, args.backfill_to
