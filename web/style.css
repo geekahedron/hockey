@@ -74,6 +74,9 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .player.pick[role="button"]:hover{background:var(--navy3)}
 .player.removed{opacity:.72}
 .pill.pos{margin-right:6px;letter-spacing:.03em}
+.pill.injury{background:#5c2a32;color:#ffc1c7}
+.pill.returning{background:#3d3418;color:#f0d48a}
+.status-note{margin:0 0 8px}
 .player.removed .name,.player.removed .pct{color:var(--muted);font-weight:600}
 .player.removed .bar > i{background:var(--line)}
 .removed-note{color:var(--muted)}

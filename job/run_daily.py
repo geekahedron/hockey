@@ -148,6 +148,15 @@ def parse_args(argv):
         ),
     )
     parser.add_argument(
+        "--backfill-absence",
+        action="store_true",
+        help=(
+            "Add games missed since each player's last game, from the local "
+            "box scores, to published days and today.json. Does not add injury "
+            "designations, does not change picks or grades, and does not read seasons/."
+        ),
+    )
+    parser.add_argument(
         "--relabel",
         action="store_true",
         help=(
@@ -324,6 +333,27 @@ def backfill_clones(publish_dir, getter, raw_dir, log, start, end):
     return failed
 
 
+def _stamp_status(day, getter, raw_dir, log):
+    """Injury designations for today, and games missed for this slate.
+
+    A feed failure is logged and ignored. Probabilities are not an input.
+    """
+    from job.injury import annotate
+
+    live = today_toronto().isoformat()
+    try:
+        annotate(
+            day,
+            getter,
+            raw_dir,
+            live,
+            log,
+            designations=(day.get("date") == live),
+        )
+    except Exception as exc:
+        log("status skipped: %s" % exc)
+
+
 def run(argv=None, get_json=None, tims_source=None):
     args = parse_args(argv)
     publish_dir = os.path.abspath(os.path.expanduser(args.publish))
@@ -347,6 +377,11 @@ def run(argv=None, get_json=None, tims_source=None):
         if args.backfill_inputs:
             from job.inputs import backfill_inputs
             failed = backfill_inputs(publish_dir, getter, raw_dir, log)
+            return 1 if failed else 0
+
+        if args.backfill_absence:
+            from job.injury import backfill_absence
+            failed = backfill_absence(publish_dir, raw_dir, log)
             return 1 if failed else 0
 
         if args.backfill_clones:
@@ -386,6 +421,7 @@ def run(argv=None, get_json=None, tims_source=None):
                         log("starts %s" % when.isoformat())
                     else:
                         log("starts refused %s" % when.isoformat())
+                _stamp_status(kept, getter, raw_dir, log)
                 publish_day(publish_dir, kept, as_today=True)
             else:
                 if args.groups:
@@ -441,6 +477,7 @@ def run(argv=None, get_json=None, tims_source=None):
                         log("rescored pending %s" % when.isoformat())
                 if not args.no_grade:
                     apply_grade(day, schedule_payload)
+                _stamp_status(day, getter, raw_dir, log)
                 publish_day(publish_dir, day, as_today=True)
         except GroupsSourceError as exc:
             # Today's lists were not written. Graded days already published stay.

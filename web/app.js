@@ -1020,6 +1020,12 @@
     if (bits.length) body.appendChild(h("p", {class: "dialog-kicker", text: bits.join(" \u00b7 ")}));
     var gone = removedNote(player);
     if (gone) body.appendChild(h("p", {class: "removed-note", text: gone}));
+    statusBadges(player).forEach(function (badge) {
+      body.appendChild(h("p", {class: "status-note"},
+        h("span", {class: "pill " + badge.kind, text: badge.label}),
+        badge.title ? " " + badge.title : ""
+      ));
+    });
     var slate = slateRows(player);
     body.appendChild(renderInputSection({
       title: "Inputs for this slate",
@@ -1059,6 +1065,47 @@
     });
   }
 
+  function shortDate(iso) {
+    var parts = String(iso || "").slice(0, 10).split("-");
+    if (parts.length < 3) return "";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var month = months[Number(parts[1]) - 1];
+    var day = Number(parts[2]);
+    if (!month || !day) return "";
+    return month + " " + day;
+  }
+
+  function absenceNote(absence) {
+    if (!absence || typeof absence.missed_team_games !== "number") return "";
+    var games = absence.missed_team_games === 1 ? "game" : "games";
+    var text = "missed " + absence.missed_team_games + " " + games;
+    var played = shortDate(absence.last_played);
+    if (played) text += ", last played " + played;
+    return text;
+  }
+
+  function injuryTitle(injury) {
+    if (!injury || !injury.status) return "";
+    var bits = [];
+    if (injury.detail) bits.push(injury.detail);
+    var when = shortDate(injury.updated);
+    if (when) bits.push(when);
+    return bits.join(" \u00b7 ");
+  }
+
+  function statusBadges(player) {
+    var badges = [];
+    var injury = player && player.injury;
+    if (injury && injury.status) {
+      badges.push({kind: "injury", label: String(injury.status), title: injuryTitle(injury)});
+    }
+    var absence = player && player.absence;
+    if (absence && typeof absence.missed_team_games === "number" && absence.missed_team_games >= 3) {
+      badges.push({kind: "returning", label: "Returning", title: absenceNote(absence)});
+    }
+    return badges;
+  }
+
   function renderPlayer(player, players, method, mode, group, day) {
     var selected = method && method.id ? method : methodMeta(null);
     var valueText = formatMethodValue(player, selected);
@@ -1071,6 +1118,9 @@
         player.name,
         on ? " " : null,
         on ? h("span", {class: "pill", text: "Pick"}) : null,
+        statusBadges(player).map(function (badge) {
+          return [" ", h("span", {class: "pill " + badge.kind, title: badge.title || null, text: badge.label})];
+        }),
         !isAvailable(player) && gameStartedFirst(player) ? " " : null,
         !isAvailable(player) && gameStartedFirst(player) ? h("span", {class: "pill started", text: "Game started"}) : null),
       h("span", {class: "pct", text: valueText})
@@ -1086,6 +1136,10 @@
     var stats = kindOf(selected) === "rank" ? styleLine(player) : "";
     var aria = (player.name || "Player") + (pos ? ", " + pos : "");
     if (on) aria += ", pick";
+    statusBadges(player).forEach(function (badge) {
+      aria += ", " + badge.label;
+      if (badge.title) aria += ", " + badge.title;
+    });
     if (!isAvailable(player)) aria += ", no longer on the list";
     aria += ". Show calculation inputs.";
     return h("div", {
