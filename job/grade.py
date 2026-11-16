@@ -4,8 +4,12 @@ A group is graded only when every team on that group's slate has a final
 game (gameState OFF or FINAL). Non-shootout goals count. Shootout goals
 (periodType SO) do not.
 
-The recorded pick is the one stored when the day was scored. Grading does
-not rescore and does not attach any other site's picks.
+The recorded pick is the one stored on the group: the current pick. Players
+with ``available`` false stayed on an earlier list and are not in that pick,
+the top three, or the random baseline. Their scored flags are still filled
+when their game is final. Morning picks, when the day has them, are graded
+onto ``day["morning"]`` only. Grading does not rescore and does not attach
+any other site's picks.
 
 random is the share of the group's players who scored, which is the hit
 rate of picking one of them at random. top3_hits counts how many of the
@@ -95,10 +99,15 @@ def fill_method_hits(group):
     return group
 
 
+def _on_current_list(player):
+    return player.get("available", True) is not False
+
+
 def apply_grade(day, payload):
     """Fill hit / scorers / random on ``day``. Pending groups stay pending.
 
-    Returns the same day dict.
+    Returns the same day dict. The hit is the current pick. Players no longer
+    on the Tims list still receive scored and goals for reference.
     """
     final, goals = goal_counts(payload)
     for group in day.get("groups") or []:
@@ -111,11 +120,13 @@ def apply_grade(day, payload):
             group["n"] = 0
             group["scorers"] = []
             continue
+        eligible = [player for player in players if _on_current_list(player)]
+        team_source = eligible if eligible else players
         teams = []
-        for player in players:
+        for player in team_source:
             if player.get("team") and player["team"] not in teams:
                 teams.append(player["team"])
-        ready = all(final.get(team) is True for team in teams)
+        ready = all(final.get(team) is True for team in teams) if teams else True
         if not ready:
             group["status"] = "pending"
             group["hit"] = None
@@ -123,29 +134,34 @@ def apply_grade(day, payload):
             group["random"] = None
             group["n"] = None
             group["scorers"] = None
-            for player in group.get("players") or []:
+            for player in players:
                 player["scored"] = None
                 player["goals"] = None
             continue
-        scorers = []
-        for player in group.get("players") or []:
+        for player in players:
+            team = player.get("team")
+            if team and final.get(team) is not True:
+                player["scored"] = None
+                player["goals"] = None
+                continue
             count = int(goals.get(int(player["pid"]), 0))
             player["goals"] = count
             player["scored"] = 1 if count else 0
-            if count:
+        scorers = []
+        for player in eligible:
+            if player.get("scored"):
                 scorers.append(player["name"])
-        players = group.get("players") or []
-        n = len(players)
-        scored_n = sum(p["scored"] for p in players)
-        tied = [p for p in players if p.get("pick")]
+        n = len(eligible)
+        scored_n = sum(player["scored"] for player in eligible)
+        tied = [player for player in eligible if player.get("pick")]
         if tied:
-            hit = sum(p["scored"] for p in tied) / float(len(tied))
+            hit = sum(player["scored"] for player in tied) / float(len(tied))
         else:
             hit = None
-        top = players[:3]
+        top = eligible[:3]
         group["status"] = "graded"
         group["hit"] = None if hit is None else round(hit, 4)
-        group["top3_hits"] = int(sum(p["scored"] for p in top))
+        group["top3_hits"] = int(sum(player["scored"] for player in top)) if top else 0
         group["random"] = round(scored_n / float(n), 4) if n else None
         group["n"] = n
         group["scorers"] = scorers
@@ -159,4 +175,6 @@ def apply_grade(day, payload):
     else:
         day["status"] = "pending"
     day["graded_at"] = _stamp()
+    from job.snapshots import grade_morning
+    grade_morning(day, final, goals)
     return day

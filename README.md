@@ -30,7 +30,7 @@ reads JSON:
 | --- | --- |
 | `data/today.json` | Today's three groups. Players sorted by the selected method, a bar per player, team, opponent, home or away, top pick highlighted. The summary lists each method's leader. |
 | `data/days/index.json` | The date list. |
-| `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. A non-empty `skipped` list is names left off the slate (no team or opponent, including a postponed game). |
+| `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. A non-empty `skipped` list is names left off the slate (no team or opponent, including a postponed game). `snapshots` lists players added, removed, or dropped because their game started. `lists` is who is still eligible. A player who left before their NHL start has `available: false` and `removed_at`. A player who disappeared at or after that start stays eligible, with `game_started`. `morning` is the first picks, for reference. The picks on each group are the current ones. |
 | `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. `charts` is the year-to-date hit rate and cumulative hits for all three methods, plus the same pair of charts for each pick. |
 | `data/seasons.json` | Season list. Each row is `{id, label, base, backtest?}`. The page loads `base` for the id in `?season=`, and only an id in this file. Missing file: the page stays on the single live tree. |
 | `data/seasons/<id>/` | One extra season, same shapes as `data/` except there is no `today.json`. `season.json` and `days/index.json` may include `backtest`, `scope`, and `notes`. The 2025-26 backtest is dropped in here at deploy time. The daily rsync does not write or delete it. |
@@ -85,13 +85,22 @@ One run:
    The logistic probabilities, the model pick, and the player order are
    computed first and are not rewritten. If Tims has not posted today's
    lists, `today.json` stays on the previous slate and the process exits 75.
-5. Writes `today.json` when today's lists were scored.
+5. Writes `today.json` when today's lists were scored. The first lists are
+   the morning picks. A later list that adds or removes players appends a
+   snapshot and replaces the current picks. Players who leave before their
+   game starts stay on the day, grayed out, and are not eligible. Players
+   who disappear at or after their team's NHL start stay eligible, keep
+   their probabilities, and do not change the pick. A postponed game has
+   not started, so that drop is a removal. Season totals use the current picks.
 
-The recorded pick is whoever the model ranked first that morning (ties
-share it, and the hit is the fraction who scored). Top-3 hits are how many
-of the first three scored. The random baseline is the share of the group
-who scored, which is what a random pick would be expected to hit. The
-running hit rate is cumulative hits over cumulative graded picks.
+The recorded pick is whoever the method ranks first on the current list
+(ties share it, and the hit is the fraction who scored). The first lists
+of the day are kept as the morning picks and graded only as a reference.
+Season totals use the current pick. A day that is already graded is not
+rewritten. Top-3 hits are how many of the first three players still on the
+list scored. The random baseline is the share of those players who scored,
+which is what a random pick would be expected to hit. The running hit rate
+is cumulative hits over cumulative graded picks.
 
 Normalized groups file:
 
@@ -122,8 +131,10 @@ and are not scored.
 
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
 `--no-grade`, `--rescore`, `--backfill-clones`, `--relabel`, `--log`. A graded
-day is not scored again unless you pass `--rescore`. A still-pending day is
-graded if its games are final, and scored again while it is still pending.
+day is not scored again. `--rescore` recomputes a slate that is still pending.
+A still-pending day is graded if its games are final. If the available
+players are unchanged, the current picks stay. If players were added or
+removed, the day stores a snapshot and the current picks are scored again.
 
 The run refreshes NHL results and grades every unfinished published day
 before it asks for today's lists. Exit 0 is a full success. Exit 1 is a
@@ -188,13 +199,18 @@ published JSON in place.
 ## Server layout and cron
 
 See `deploy/README.md`. Bluehost cron is MST and may ignore `CRON_TZ`, so
-the clock lives in `job/cron_run.sh`. It runs the job only when the
-America/Toronto hour is 03 through 13, skips when `today.json` is already
-today and not still pending, and retries a not-ready slate (exit 75) on the
-next hour. Grading still publishes, and that case is rsynced.
+the clock lives in `job/cron_run.sh`. Install a five-minute cadence and let
+the script decide. From 03:00 through 13:59 America/Toronto it retries the
+morning slate once an hour (minute 00 or 05) until today is graded or
+partial. Pending still runs. Exit 75 retries on the next hour. It also
+checks Tims at 00:00, 03:00, 12:30, 13:00, 14:00, 15:00, 15:30, 16:00,
+17:00, 18:00, 18:30, 19:00, 19:30, 20:00, 20:30, 21:00, 21:30, and 22:00
+Toronto, including after the morning slate is up. Grading
+still publishes, and that case is rsynced. `*/30` works in place of `*/5`;
+do not install both.
 
 ```
-5 * * * * $HOME/tims-hockey/job/cron_run.sh
+*/5 * * * * $HOME/tims-hockey/job/cron_run.sh
 ```
 
 Publish-dir layout after a run:

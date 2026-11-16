@@ -155,8 +155,14 @@ def score_rows(rows, params=None):
 
 
 def set_method_picks(group):
-    """Record each method's morning pick. The model pick is copied, not recomputed."""
-    players = group.get("players") or []
+    """Record each method's pick. The model pick is copied, not recomputed.
+
+    Players no longer on the Tims list (``available`` false) are not eligible.
+    """
+    players = [
+        player for player in (group.get("players") or [])
+        if player.get("available", True) is not False
+    ]
     picks = {}
     stored = group.get("pick")
     if stored:

@@ -63,20 +63,49 @@ for local screenshots.
 ## Daily run
 
 The crontab line is `job/cron.example`. Paste this; the server clock can
-stay on MST:
+stay on MST. Do not rely on `CRON_TZ`.
 
 ```
-5 * * * * $HOME/tims-hockey/job/cron_run.sh
+*/5 * * * * $HOME/tims-hockey/job/cron_run.sh
 ```
 
-`job/cron_run.sh` reads America/Toronto itself. From 03:00 through 13:59
-Toronto it refreshes NHL results, grades every unfinished published day,
-then asks Tims for today's lists. If those lists are not posted yet the job
-exits 75, leaves `today.json` on yesterday's graded slate, and the next hour
-tries again. Exit 0 or 75 rsyncs `publish/` to
-`public_html/tools/hockey/data/`. A hard error (exit 1) does not. `flock`
-keeps two runs from overlapping. Each invocation appends one line to
-`~/tims-hockey/logs/cron.log`.
+`*/30 * * * *` is the other cadence that hits the same minutes. Install one
+of them, not both.
+
+`job/cron_run.sh` reads America/Toronto itself. Most firings log a skip.
+Two kinds of firing run the job:
+
+* Morning slate, once an hour from 03:00 through 13:59 (the :00 or :05
+  firing, whichever comes first that hour). It refreshes NHL results,
+  grades every unfinished published day, then asks Tims for today's lists.
+  If those lists are not posted yet the job exits 75, leaves `today.json`
+  on yesterday's graded slate, and the next hour tries again. Once today
+  is graded or partial, later morning firings skip. A pending slate still
+  runs, so a list posted as pending can be checked again in that window.
+* List checks at 00:00, 03:00, 12:30, 13:00, 14:00, 15:00, 15:30, 16:00,
+  17:00, 18:00, 18:30, 19:00, 19:30, 20:00, 20:30, 21:00, 21:30, and 22:00.
+  From 12:30 through 22:00 every one of those is on the hour or the half
+  hour, so `*/5` or `*/30` hits them. These run even after the morning
+  slate is published. The read is still only `HockeyPlayers`. Nothing
+  submits a pick.
+
+The first lists of the day are the morning picks. When a later check adds
+or removes players, the day file gains a `snapshots` entry (`time`, `added`,
+`removed`, `started`) and `lists` is who is still eligible. Everyone who
+was available at any check stays on the group: `first_seen`, `last_seen`,
+and, if they left before their game, `available: false` and `removed_at`.
+A player who disappears at or after their team's start on the NHL score
+feed (`startTimeUTC` for that date) is `started`, not `removed`: they stay
+eligible, keep their probabilities, and the pick does not change. The same
+is true when the score feed already shows the game under way. A postponed
+game (`gameScheduleState` `PPD`) has not started, so a drop then is a
+removal and the group is scored again. Season totals use those current
+picks. Morning picks are graded only as a labeled reference. A day that
+was already graded before the run is not rewritten.
+
+Exit 0 or 75 rsyncs `publish/` to `public_html/tools/hockey/data/`. A hard
+error (exit 1) does not. `flock` keeps two runs from overlapping. Each
+invocation appends one line to `~/tims-hockey/logs/cron.log`.
 
 One-time setup for the wrapper:
 

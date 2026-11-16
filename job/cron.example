@@ -1,9 +1,20 @@
 # Tims Hockey Challenge. Bluehost cron is MST and may ignore CRON_TZ.
-# The wrapper runs only from 03:00 through 13:59 America/Toronto, grades
-# finished days even when today's lists are not up yet, and retries hourly
-# until those lists are posted. It never submits a pick.
+# job/cron_run.sh reads America/Toronto itself. It never submits a pick.
+#
+# */5 hits every snapshot slot on the minute, and minute 00 or 05 is the
+# morning retry. */30 also hits the slots; the :00 run is that hour's
+# morning retry. Do not install both.
+#
+# Morning slate: 03:00 through 13:59 America/Toronto, once an hour, until
+# today is graded or partial. Pending still runs. Exit 75 retries next hour.
+#
+# List checks (America/Toronto), including after the morning slate is up.
+# 12:30 through 22:00 are all on the hour or the half hour:
+#   00:00 03:00
+#   12:30 13:00 14:00 15:00 15:30 16:00 17:00
+#   18:00 18:30 19:00 19:30 20:00 20:30 21:00 21:30 22:00
 #
 # Create the log directory once: mkdir -p "$HOME/tims-hockey/logs"
 # Make the wrapper executable: chmod +x "$HOME/tims-hockey/job/cron_run.sh"
 
-5 * * * * $HOME/tims-hockey/job/cron_run.sh
+*/5 * * * * $HOME/tims-hockey/job/cron_run.sh
