@@ -2,12 +2,13 @@
 
 The first scored lists of a day are the morning picks. Later checks compare
 the available players. When that set changes, the day stores a snapshot
-``{time, added, removed, started}`` and the current lists. A player who
-leaves the Tims list before their team's NHL start is removed: ineligible,
-and the group is scored again. A player who disappears at or after that
-start stays eligible, keeps the probabilities they already had, and does
-not change the pick. A postponed game has not started, so a drop there is
-a removal.
+``{time, added, removed, started}`` and the current lists. Anyone missing
+from a check is off the list. A player is also off the list once their
+team's NHL start time has passed, even if Tims still lists them. Neither
+can be picked. The graded pick is whoever the list said at the moment that
+player's game started. A scratch before that start moves the pick to whoever
+is still available. If every candidate was scratched before a game, the
+group has no graded pick.
 
 Grading of the published result uses the current picks. Morning picks are
 graded only into ``day["morning"]``, which the season totals do not read.
@@ -271,7 +272,7 @@ def _touch_players(group, when):
     return group
 
 
-def open_slate(day, when):
+def open_slate(day, when, schedule=None):
     """First publish: these lists are both the morning picks and the current ones."""
     day["generated_at"] = when
     day["snapshots"] = []
@@ -283,19 +284,19 @@ def open_slate(day, when):
             if "removed_at" in player:
                 del player["removed_at"]
     day["morning"] = morning_from(day, when)
-    _write_lists(day, when)
+    apply_timeline(day, when, schedule)
     return day
 
 
-def note_seen(existing, when):
-    """Lists matched. Remember that the current players were still available."""
+def note_seen(existing, when, schedule=None):
+    """Lists matched. Game starts since the last check still take players off."""
     day = copy.deepcopy(existing)
     if not isinstance(day.get("morning"), dict):
         day["morning"] = morning_from(day, day.get("generated_at") or when)
     for group in day.get("groups") or []:
         _touch_players(group, when)
     day.setdefault("snapshots", [])
-    _write_lists(day, when)
+    apply_timeline(day, when, schedule)
     return day
 
 
@@ -357,13 +358,26 @@ def _rerank_goals(players):
         player["rank"]["hch_style"] = place
 
 
-def _lock_player(player, when):
-    player["available"] = True
-    player["game_started"] = True
-    if not player.get("game_started_at"):
-        player["game_started_at"] = when
-    if "removed_at" in player:
-        del player["removed_at"]
+def _mark_off_list(player, when, board, because_game):
+    """A player who cannot be picked. ``because_game`` is not a separate eligibility."""
+    player["available"] = False
+    player["pick"] = False
+    if not player.get("removed_at"):
+        player["removed_at"] = when
+    info = (board or {}).get(player.get("team")) or {}
+    start = info.get("start")
+    if start is not None and not info.get("postponed") and not player.get("start"):
+        player["start"] = start.isoformat()
+    if because_game:
+        player["game_started"] = True
+        player["unavailable_reason"] = "game_started"
+        if player.get("start"):
+            player["game_started_at"] = player["start"]
+        elif not player.get("game_started_at"):
+            player["game_started_at"] = when
+    else:
+        player["game_started"] = False
+        player["unavailable_reason"] = "removed"
 
 
 def _touch_listed(group, fresh_ids, when):
@@ -380,11 +394,11 @@ def _touch_listed(group, fresh_ids, when):
     return group
 
 
-def _mark_started(group, started_ids, when):
+def _mark_started(group, started_ids, when, board):
     for player in group.get("players") or []:
         if _pid(player) not in started_ids:
             continue
-        _lock_player(player, when)
+        _mark_off_list(player, when, board, True)
     return group
 
 
@@ -428,13 +442,10 @@ def _rebuild_group(previous, fresh, when, board):
                 players.append(row)
                 continue
             if player.get("game_started") or game_has_started(player.get("team"), when, board):
-                _lock_player(row, when)
+                _mark_off_list(row, when, board, True)
                 players.append(row)
                 continue
-            row["available"] = False
-            row["removed_at"] = when
-            row["pick"] = False
-            row["game_started"] = False
+            _mark_off_list(row, when, board, False)
             players.append(row)
     group = {
         "id": (fresh or previous or {}).get("id"),
@@ -496,7 +507,7 @@ def merge_lists(existing, scored, when, frozen_ids=None, force=False, schedule=N
         if previous is not None and not g_added and not g_removed and (g_started or not force):
             fresh_ids = set(_pid(player) for player in (fresh or {}).get("players") or [])
             _touch_listed(previous, fresh_ids, when)
-            _mark_started(previous, set(item["pid"] for item in g_started), when)
+            _mark_started(previous, set(item["pid"] for item in g_started), when, board)
             merged.append(previous)
             continue
         if previous is None and fresh is None:
@@ -518,6 +529,241 @@ def merge_lists(existing, scored, when, frozen_ids=None, force=False, schedule=N
         day["snapshots"] = snaps
     else:
         day.setdefault("snapshots", [])
+    apply_timeline(day, when, schedule)
+    return day
+
+
+def _stamp_starts(day, board):
+    for group in day.get("groups") or []:
+        for player in group.get("players") or []:
+            info = (board or {}).get(player.get("team")) or {}
+            start = info.get("start")
+            if start is not None and not info.get("postponed") and not player.get("start"):
+                player["start"] = start.isoformat()
+
+
+def _on_list_at(player, moment, include_same_instant=False):
+    """On the Tims list at ``moment``.
+
+    A removal at exactly ``moment`` still counts when locking a game that
+    starts then. It does not count for the pick after the check.
+    """
+    first = _as_dt(player.get("first_seen"))
+    if first is not None and moment < first:
+        return False
+    left = _as_dt(player.get("removed_at"))
+    if left is None:
+        return True
+    if include_same_instant:
+        return moment <= left
+    return moment < left
+
+
+def _pickable_at(player, moment, at_whistle=False):
+    """Eligible to be chosen at ``moment``.
+
+    ``at_whistle`` includes a player whose game starts at that exact moment,
+    which is the last instant they can still be the pick.
+    """
+    if moment is None or not _on_list_at(player, moment, include_same_instant=at_whistle):
+        return False
+    start = _as_dt(player.get("start"))
+    if start is None:
+        return True
+    if at_whistle:
+        return moment <= start
+    return moment < start
+
+
+def _method_value(player, method_id):
+    if method_id == "hch_style":
+        value = (player.get("rank") or {}).get("hch_style")
+        if isinstance(value, int):
+            return value
+        return None
+    field = "model" if method_id == "model" else method_id
+    value = (player.get("probability") or {}).get(field)
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _order_method(players, method_id):
+    ranked = []
+    for player in players:
+        if _method_value(player, method_id) is not None:
+            ranked.append(player)
+    if method_id == "hch_style":
+        ranked.sort(key=lambda player: (_method_value(player, method_id), _pid(player)))
+    else:
+        ranked.sort(key=lambda player: (
+            -_method_value(player, method_id), player.get("name") or "", _pid(player)
+        ))
+    return ranked
+
+
+def _leaders(players, method_id):
+    ranked = _order_method(players, method_id)
+    if not ranked:
+        return []
+    best = _method_value(ranked[0], method_id)
+    return [player for player in ranked if _method_value(player, method_id) == best]
+
+
+def _pick_block(leaders, method_id, top, locked, locked_at):
+    if not leaders:
+        return {
+            "pids": [],
+            "name": None,
+            "team": None,
+            "opp": None,
+            "home": None,
+            "probability": None,
+            "top3": [_pid(player) for player in top],
+            "hit": None,
+            "top3_hits": None,
+            "locked": False,
+            "locked_at": None,
+            "top3_locked": False,
+        }
+    first = leaders[0]
+    block = {
+        "pids": [_pid(player) for player in leaders],
+        "name": " / ".join(player.get("name") or "" for player in leaders),
+        "team": first.get("team"),
+        "opp": first.get("opp"),
+        "home": first.get("home"),
+        "probability": None if method_id == "hch_style" else _method_value(first, method_id),
+        "top3": [_pid(player) for player in top],
+        "hit": None,
+        "top3_hits": None,
+        "locked": bool(locked),
+        "locked_at": locked_at,
+        "top3_locked": bool(locked),
+    }
+    if method_id == "hch_style":
+        block["rank"] = _method_value(first, method_id)
+        block["goals_per_game"] = (first.get("style") or {}).get("goals_per_game")
+        block["probability"] = None
+    return block
+
+
+def _replay_method(players, method_id, starts, when):
+    """Lock the pick and the top three at each player's game start.
+
+    Until that start, the choice follows whoever is still available. A
+    scratch before the start simply drops that player. After the lock,
+    later list changes do not move it.
+    """
+    locked = None
+    locked_at = None
+    locked_top = []
+    moment = _as_dt(when)
+    for start in starts:
+        if moment is not None and start > moment:
+            break
+        eligible = [player for player in players if _pickable_at(player, start, at_whistle=True)]
+        leaders = _leaders(eligible, method_id)
+        if locked is None and any(_as_dt(player.get("start")) == start for player in leaders):
+            locked = leaders
+            locked_at = start.isoformat()
+        top = _order_method(eligible, method_id)[:3]
+        for player in top:
+            if _as_dt(player.get("start")) != start:
+                continue
+            pid = _pid(player)
+            if pid in locked_top or len(locked_top) >= 3:
+                continue
+            locked_top.append(pid)
+    if locked is not None:
+        leaders = locked
+        top_players = []
+        by_pid = dict((_pid(player), player) for player in players)
+        for pid in locked_top:
+            if pid in by_pid:
+                top_players.append(by_pid[pid])
+        return _pick_block(leaders, method_id, top_players, True, locked_at), True
+    eligible_now = [player for player in players if _pickable_at(player, moment, at_whistle=False)] if moment else list(players)
+    leaders = _leaders(eligible_now, method_id)
+    top = _order_method(eligible_now, method_id)[:3]
+    return _pick_block(leaders, method_id, top, False, None), False
+
+
+def _mark_availability(player, when):
+    moment = _as_dt(when)
+    start = _as_dt(player.get("start"))
+    left = _as_dt(player.get("removed_at"))
+    game = (
+        start is not None and moment is not None and moment >= start
+        and (left is None or start <= left)
+    )
+    scratch = left is not None and moment is not None and moment >= left and not game
+    if game:
+        player["available"] = False
+        player["game_started"] = True
+        player["unavailable_reason"] = "game_started"
+        player["game_started_at"] = player.get("start")
+    elif scratch:
+        player["available"] = False
+        player["game_started"] = False
+        player["unavailable_reason"] = "removed"
+    else:
+        player["available"] = True
+        player["game_started"] = False
+        if "unavailable_reason" in player:
+            player["unavailable_reason"] = None
+
+
+def apply_timeline(day, when, schedule=None):
+    """Drop players whose games have started and lock picks at those starts.
+
+    Safe to run again. Players with no start time keep the ordinary current
+    pick, which grading still records.
+    """
+    board = game_board(schedule)
+    _stamp_starts(day, board)
+    moment = _as_dt(when)
+    for group in day.get("groups") or []:
+        players = group.get("players") or []
+        for player in players:
+            _mark_availability(player, when)
+        starts = []
+        seen = set()
+        for player in players:
+            start = _as_dt(player.get("start"))
+            if start is None or start in seen:
+                continue
+            seen.add(start)
+            starts.append(start)
+        starts.sort()
+        methods = {}
+        model_block = None
+        model_locked = False
+        for method_id in ("model", "ddh_style", "hch_style"):
+            block, locked = _replay_method(players, method_id, starts, when)
+            if method_id == "model":
+                model_block = block
+                model_locked = locked
+            if block.get("pids") or (group.get("method_picks") or {}).get(method_id) or method_id == "model":
+                methods[method_id] = block
+        if model_block is not None:
+            group["pick"] = {
+                "pids": list(model_block.get("pids") or []),
+                "name": model_block.get("name"),
+                "team": model_block.get("team"),
+                "opp": model_block.get("opp"),
+                "home": model_block.get("home"),
+                "probability": model_block.get("probability"),
+                "locked": model_locked,
+                "locked_at": model_block.get("locked_at"),
+            }
+            group["pick_locked"] = model_locked
+            chosen = set(group["pick"]["pids"])
+            for player in players:
+                player["pick"] = _pid(player) in chosen
+        group["method_picks"] = methods
+        if moment is not None:
+            group["availability_at"] = when
     _write_lists(day, when)
     return day
 

@@ -340,15 +340,15 @@ def test_game_start_drop_keeps_the_pick_and_the_grade():
     group = merged["groups"][0]
     locked = _by_pid(group)[1]
     assert group["pick"]["pids"] == [1]
-    assert locked["available"] is True
-    assert locked["game_started"] is True
+    assert group["pick_locked"] is True
+    assert locked["available"] is False
+    assert locked["unavailable_reason"] == "game_started"
     assert locked["probability"]["model"] == kept_prob
     assert locked["pick"] is True
-    assert "removed_at" not in locked
     assert merged["snapshots"][-1]["removed"] == []
     assert merged["snapshots"][-1]["added"] == []
     assert merged["snapshots"][-1]["started"] == [{"group": 1, "pid": 1, "name": "Early"}]
-    assert [row["pid"] for row in merged["lists"]["groups"][0]["players"]] == [1, 2]
+    assert [row["pid"] for row in merged["lists"]["groups"][0]["players"]] == [2]
     apply_grade(merged, {"games": [
         {"gameType": 2, "gameState": "OFF", "homeTeam": {"abbrev": "EDM"}, "awayTeam": {"abbrev": "SJS"},
          "goals": [{"playerId": 1, "periodDescriptor": {"periodType": "REG"}}]},
@@ -416,6 +416,54 @@ def test_postponed_game_drop_is_a_removal():
     assert merged["groups"][0]["pick"]["pids"] == [2]
     assert merged["snapshots"][-1]["removed"][0]["name"] == "Early"
     assert merged["snapshots"][-1]["started"] == []
+
+
+def test_game_start_drops_a_player_tims_still_lists():
+    at_nine = "2026-11-16T21:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])])
+    checked = note_seen(day, at_nine, schedule=_evening_board())
+    group = checked["groups"][0]
+    assert group["pick_locked"] is True
+    assert group["pick"]["pids"] == [1]
+    assert _by_pid(group)[1]["available"] is False
+    assert _by_pid(group)[1]["unavailable_reason"] == "game_started"
+    assert _by_pid(group)[2]["available"] is True
+
+
+def test_every_pre_game_scratch_grades_nothing():
+    before = "2026-11-16T18:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])])
+    cleared = merge_lists(day, _shell([_group(1, [])], before), before, schedule=_evening_board())
+    graded = note_seen(cleared, "2026-11-16T23:00:00-05:00", schedule=_evening_board())
+    apply_grade(graded, {"games": [
+        {"gameType": 2, "gameState": "OFF", "homeTeam": {"abbrev": "EDM"}, "awayTeam": {"abbrev": "SJS"}, "goals": []},
+        {"gameType": 2, "gameState": "OFF", "homeTeam": {"abbrev": "TOR"}, "awayTeam": {"abbrev": "CBJ"}, "goals": []},
+    ]})
+    assert graded["groups"][0]["status"] == "graded"
+    assert graded["groups"][0]["hit"] is None
+    assert graded["groups"][0]["pick_locked"] is False
+
+
+def test_top3_locks_at_each_players_start():
+    at_close = "2026-11-16T23:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "A", 0.9, team="EDM", opp="SJS"),
+        _player(2, "B", 0.8, team="EDM", opp="SJS"),
+        _player(3, "C", 0.7, team="TOR", opp="CBJ"),
+        _player(4, "D", 0.1, team="TOR", opp="CBJ"),
+    ])])
+    checked = note_seen(day, at_close, schedule=_evening_board())
+    model = checked["groups"][0]["method_picks"]["model"]
+    assert model["locked"] is True
+    assert model["pids"] == [1]
+    assert model["top3"] == [1, 2, 3]
+    assert model["top3_locked"] is True
 
 
 def test_page_shows_removed_players_and_morning_picks():
