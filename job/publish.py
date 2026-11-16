@@ -4,8 +4,14 @@ Layout of the publish directory (rsynced to public_html/tools/hockey/data/):
 
     today.json
     season.json
+    seasons.json
     days/index.json
     days/YYYY-MM-DD.json
+
+seasons.json is the list of seasons the page can switch to. The backtest
+tree is not written here. It is dropped into data/seasons/<id>/ on the
+web host (same file shapes: season.json, days/index.json, days/YYYY-MM-DD.json)
+and cron_run.sh excludes seasons/ from rsync --delete.
 
 Secrets never belong in this tree. assert_public refuses documents that
 carry another site's pick brand, a credential key, or a TIMS_ secret.
@@ -497,6 +503,24 @@ def build_index(days, today):
     }
 
 
+# The page reads this file and picks a base path by season id. The backtest
+# directory itself is not part of the daily publish.
+SEASONS_MANIFEST = [
+    {"id": "2026-27", "label": "2026-27 (live)", "base": "data/"},
+    {
+        "id": "2025-26",
+        "label": "2025-26 backtest",
+        "base": "data/seasons/2025-26/",
+        "backtest": True,
+    },
+]
+
+
+def write_seasons_manifest(publish_dir):
+    """Write seasons.json so a publish always leaves the season list in place."""
+    _atomic_write(os.path.join(publish_dir, "seasons.json"), SEASONS_MANIFEST)
+
+
 def rebuild(publish_dir):
     days = list_days(publish_dir)
     today = None
@@ -510,4 +534,5 @@ def rebuild(publish_dir):
     index = build_index(days, today)
     _atomic_write(os.path.join(publish_dir, "season.json"), season)
     _atomic_write(os.path.join(publish_dir, "days", "index.json"), index)
+    write_seasons_manifest(publish_dir)
     return season, index

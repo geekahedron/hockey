@@ -24,6 +24,9 @@ h3{font-size:16px;margin:0}
 .sub{margin:0;color:var(--muted)}
 .page-modes{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
 .page-modes button.on{background:var(--orange);color:#1a0d00;border-color:var(--orange)}
+.controls{display:flex;gap:12px;align-items:center;margin-left:auto;flex-wrap:wrap}
+.season-note{margin:10px 0 0;color:var(--muted);font-size:13px;max-width:75ch}
+.season-note p{margin:0 0 4px}
 main{max-width:1100px;margin:0 auto;padding:8px 12px 24px}
 .foot{max-width:1100px;margin:0 auto;padding:6px 16px 30px;color:var(--muted);font-size:12.5px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
@@ -31,7 +34,7 @@ main{max-width:1100px;margin:0 auto;padding:8px 12px 24px}
 .pill.hit{background:#14351c;color:var(--hit)}
 .pill.miss{background:var(--navy2);color:var(--muted)}
 .pill.pending{background:var(--navy2);color:var(--muted)}
-label.method{display:flex;flex-direction:row;align-items:center;gap:8px;margin-left:auto;color:var(--muted);font-size:13px}
+label.method{display:flex;flex-direction:row;align-items:center;gap:8px;margin-left:0;color:var(--muted);font-size:13px}
 select,input[type=date]{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
 select:focus,input:focus,button:focus-visible{outline:2px solid var(--orange);outline-offset:1px}
 button{background:var(--orange);color:#1a0d00;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
@@ -76,6 +79,13 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .dates{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
 .dates button{padding:4px 10px;font-size:12.5px}
 .dates button.on{background:var(--orange);color:#1a0d00;border-color:var(--orange)}
+.past-months{position:relative;max-height:22rem;overflow:auto;margin:8px 0 4px;padding-right:4px}
+.past-months details{border-top:1px solid var(--line);padding:4px 0}
+.past-months summary{cursor:pointer;color:var(--ink);font-weight:600;padding:4px 0}
+.past-months .dates{margin:4px 0 8px}
+.season-table{max-height:28rem;overflow:auto}
+.season-table thead th{position:sticky;top:0;background:var(--card);z-index:1}
+.skipped{margin:4px 0 0}
 .past-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .stats{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
 .stats .stat{background:var(--navy);border-radius:8px;padding:8px 10px;min-width:7em}
@@ -105,6 +115,6 @@ table.data tbody tr.pick{background:var(--navy3);box-shadow:inset 3px 0 0 var(--
 .compare-note{margin:0 0 8px}
 @media (max-width:900px){
   .summary,.groups,.chart-grid{grid-template-columns:1fr}
-  label.method{margin-left:0}
+  .controls{margin-left:0}
   .leaders > div{grid-template-columns:minmax(0,1fr) auto}
 }

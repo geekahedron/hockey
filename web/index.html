@@ -16,10 +16,16 @@
     <button type="button" class="ghost on" data-view="today" aria-pressed="true">Today</button>
     <button type="button" class="ghost" data-view="past" aria-pressed="false">Past days</button>
     <button type="button" class="ghost" data-view="season" aria-pressed="false">Season</button>
-    <label class="method">Method
-      <select id="method" aria-label="Scoring method"></select>
-    </label>
+    <div class="controls">
+      <label class="method season-pick" id="season-label" hidden>Season
+        <select id="season" aria-label="Season"></select>
+      </label>
+      <label class="method">Method
+        <select id="method" aria-label="Scoring method"></select>
+      </label>
+    </div>
   </div>
+  <div id="season-note" class="season-note" hidden></div>
 </header>
 <main>
   <p id="banner" class="warn" hidden role="status"></p>

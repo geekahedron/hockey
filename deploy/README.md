@@ -29,8 +29,10 @@ joblib file). The two extra methods use numpy only (`clones/`).
   data/                                rsync target. JSON only
     today.json
     season.json
+    seasons.json                       season list, rewritten every publish
     days/index.json
     days/YYYY-MM-DD.json
+    seasons/2025-26/                   backtest drop-in. rsync excludes seasons/
 ```
 
 `~/tims-hockey` stays outside `public_html` so the model, the raw files, and
@@ -103,7 +105,7 @@ cd ~/tims-hockey
   --publish ~/tims-hockey/publish \
   --relabel \
   --log ~/tims-hockey/logs/relabel.log
-rsync -a --delete ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
 ```
 
 Copy `web/index.html`, `web/app.js`, and `web/style.css` into

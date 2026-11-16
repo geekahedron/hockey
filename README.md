@@ -30,10 +30,12 @@ reads JSON:
 | --- | --- |
 | `data/today.json` | Today's three groups. Players sorted by the selected method, a bar per player, team, opponent, home or away, top pick highlighted. The summary lists each method's leader. |
 | `data/days/index.json` | The date list. |
-| `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. |
+| `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. A non-empty `skipped` list is names left off the slate (no team or opponent, including a postponed game). |
 | `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. `charts` is the year-to-date hit rate and cumulative hits for all three methods, plus the same pair of charts for each pick. |
+| `data/seasons.json` | Season list. Each row is `{id, label, base, backtest?}`. The page loads `base` for the id in `?season=`, and only an id in this file. Missing file: the page stays on the single live tree. |
+| `data/seasons/<id>/` | One extra season, same shapes as `data/` except there is no `today.json`. `season.json` and `days/index.json` may include `backtest`, `scope`, and `notes`. The 2025-26 backtest is dropped in here at deploy time. The daily rsync does not write or delete it. |
 
-Views are Today, Past days, and Season. The method menu lists the three
+Views are Today, Past days, and Season. A season menu appears when `seasons.json` lists more than one season. The live season is the default. `?season=2025-26` opens the backtest. That season has no today card. Its note comes from `notes` on `season.json` and `days/index.json`. A long season collapses past days by month and scrolls the pick table. The method menu lists the three
 names above. The compare table on Today has a column per method. A
 probability method is a number on each player at `probability.<id>` (0 to
 1). The goals-per-game method is `rank.<id>` (1 is first) plus `style`. The
@@ -142,7 +144,7 @@ git pull
   --publish ~/tims-hockey/publish \
   --relabel \
   --log ~/tims-hockey/logs/relabel.log
-rsync -a --delete ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
 ```
 
 Copy `web/index.html`, `web/app.js`, and `web/style.css` into
@@ -200,13 +202,17 @@ Publish-dir layout after a run:
 ```
 today.json
 season.json
+seasons.json
 days/index.json
 days/YYYY-MM-DD.json
 ```
 
-`rsync` copies that tree to `public_html/tools/hockey/data/`. The HTML is
-copied by hand from `web/` when the page changes. Do not rsync the repo, the
-raw files, or the secrets file into `public_html`.
+`rsync` copies that tree to `public_html/tools/hockey/data/`. `seasons.json`
+is rewritten on every publish. `data/seasons/` is not in the publish tree.
+The rsync uses `--delete` and `--exclude '/seasons/'`, so a backtest dropped
+into `data/seasons/` is neither deleted nor overwritten. The HTML is copied
+by hand from `web/` when the page changes. Do not rsync the repo, the raw
+files, or the secrets file into `public_html`.
 
 ## Tests
 
