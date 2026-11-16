@@ -11,7 +11,7 @@
 <header class="top">
   <a class="brand" href="../../">Geekahedron</a>
   <h1>Tims Hockey Challenge</h1>
-  <p class="sub">Three groups a day. Switch the menu between the logistic model, a scoring-rate estimate, and a goals-per-game ranking.</p>
+  <p class="sub">Three groups a day. Switch the menu between the logistic model, a scoring-rate estimate, a goals-per-game ranking, or a custom mix of those three.</p>
   <div class="page-modes">
     <button type="button" class="ghost on" data-view="today" aria-pressed="true">Today</button>
     <button type="button" class="ghost" data-view="past" aria-pressed="false">Past days</button>
@@ -29,6 +29,7 @@
 </header>
 <main>
   <p id="banner" class="warn" hidden role="status"></p>
+  <section id="mix-panel" class="card" hidden></section>
   <section id="view-today" aria-live="polite"></section>
   <section id="view-past" hidden></section>
   <section id="view-season" hidden></section>
@@ -43,6 +44,7 @@
     <div id="player-detail-body"></div>
   </div>
 </dialog>
+<script src="mix.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

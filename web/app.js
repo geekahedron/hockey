@@ -29,7 +29,15 @@
     pastDate: null,
     seasons: null,
     seasonId: null,
-    backtest: false
+    backtest: false,
+    allSeasons: false,
+    mix: null,
+    evalMode: "morning",
+    phaseFilter: "combined",
+    dayCache: {},
+    dayLoads: {},
+    catalog: [],
+    summaryDoc: null
   };
   var lastPlayerButton = null;
 
@@ -89,6 +97,7 @@
 
   function seasonIdFromQuery() {
     var raw = params.get("season") || "";
+    if (raw === "all") return "all";
     if (!/^[0-9]{4}-[0-9]{2}$/.test(raw)) return "";
     return raw;
   }
@@ -197,6 +206,12 @@
       opt.textContent = season.label;
       sel.appendChild(opt);
     });
+    if (state.seasons && state.seasons.length) {
+      var all = document.createElement("option");
+      all.value = "all";
+      all.textContent = "All seasons";
+      sel.appendChild(all);
+    }
     if (state.seasonId) sel.value = state.seasonId;
   }
 
@@ -437,6 +452,8 @@
   }
 
   function methodMeta(doc) {
+    var rules = mixApi();
+    if (state.method === "custom" && rules) return rules.CUSTOM;
     var list = methodsOf(doc || state.today || state.season || {});
     var known = knownMethods();
     var pool = known.concat(list);
@@ -462,14 +479,39 @@
     return style.goals_per_game;
   }
 
+  function currentDayFor(group) {
+    if (state.renderDay && (state.renderDay.groups || []).indexOf(group) !== -1) return state.renderDay;
+    if (state.past && (state.past.groups || []).indexOf(group) !== -1) return state.past;
+    return state.today || {date: "", status: "pending", groups: []};
+  }
+
   function pickOf(group, methodId) {
-    var block = group.method_picks && group.method_picks[methodId];
-    if (block) return block;
+    var rules = mixApi();
+    var day = currentDayFor(group);
+    if (rules && (state.evalMode === "full_day" || methodId === "custom")) {
+      var pending = !group || group.status === "pending" || group.hit == null && day.status === "pending";
+      if (methodId === "custom") {
+        return rules.customPick(day, group, state.mix, knownMethods(), state.evalMode, pending, Date.now());
+      }
+      var view = rules.viewOf(day, group, state.evalMode);
+      var block = view.method_picks && view.method_picks[methodId];
+      if (block) return block;
+      if (methodId === "model") return view.pick || null;
+      return null;
+    }
+    var stored = group.method_picks && group.method_picks[methodId];
+    if (stored) return stored;
     if (methodId === "model") return group.pick || null;
     return null;
   }
 
   function hitOf(group, methodId) {
+    var rules = mixApi();
+    if (rules && (methodId === "custom" || state.evalMode === "full_day")) {
+      var day = currentDayFor(group);
+      var pending = !group || group.status === "pending" || (group.hit == null && day.status === "pending");
+      return rules.groupHit(day, group, methodId, state.mix, knownMethods(), state.evalMode, pending, Date.now());
+    }
     if (methodId === "model") return group.hit;
     var block = group.method_picks && group.method_picks[methodId];
     return block ? block.hit : null;
@@ -530,6 +572,10 @@
   }
 
   function highlighted(player, players, method, mode, kind, group) {
+    if (method === "custom") {
+      var block = pickOf(group, "custom");
+      return !!(block && block.pids && block.pids.indexOf(player.pid) !== -1);
+    }
     if (pickLockedNow(group, method)) return isStoredPick(player, group, method);
     if (!isAvailable(player)) return false;
     if (mode === "past") return isStoredPick(player, group, method);
@@ -552,6 +598,7 @@
 
   function formatBlock(block, method) {
     if (!block) return "\u2014";
+    if (block.valueText) return block.valueText;
     if (kindOf(method) === "rank") {
       if (typeof block.goals_per_game === "number") {
         return "#" + (block.rank || 1) + " \u00b7 " + block.goals_per_game.toFixed(2);
@@ -633,9 +680,22 @@
     banner.textContent = text;
   }
 
+  function mixApi() {
+    return window.HockeyMix;
+  }
+
+  function trackMethods(doc) {
+    var methods = displayMethods(doc);
+    var rules = mixApi();
+    if (rules && !methods.some(function (method) { return method.id === "custom"; })) {
+      methods.push(rules.CUSTOM);
+    }
+    return methods;
+  }
+
   function fillMethodSelect() {
     var sel = document.getElementById("method");
-    var methods = knownMethods();
+    var methods = trackMethods(state.today || state.season || {});
     clear(sel);
     methods.forEach(function (method) {
       var opt = document.createElement("option");
@@ -650,8 +710,12 @@
       slot.textContent = "More methods later";
       sel.appendChild(slot);
     }
-    if (!methods.some(function (m) { return m.id === state.method; })) state.method = "model";
-    sel.value = state.method;
+    if (state.method !== "custom" && !methods.some(function (m) { return m.id === state.method; })) {
+      state.method = "model";
+    }
+    sel.value = state.method === "custom" || methods.some(function (m) { return m.id === state.method; })
+      ? state.method
+      : "model";
   }
 
   function statusLine(day) {
@@ -663,7 +727,7 @@
 
   function renderSummary(day, mode) {
     var wrap = h("div", {class: "summary"});
-    var methods = displayMethods(day);
+    var methods = trackMethods(day);
     var selected = methodMeta(day);
     var multi = methods.length > 1;
     (day.groups || []).forEach(function (group) {
@@ -693,7 +757,7 @@
           );
         })));
       }
-      displayMethods(day).forEach(function (method) {
+      trackMethods(day).forEach(function (method) {
         var earlier = morningPick(day, group.id, method.id);
         if (!earlier || !earlier.name || samePick(pickOf(group, method.id), earlier)) return;
         var text = "Morning pick \u00b7 " + method.label + ": " + earlier.name;
@@ -1661,14 +1725,368 @@
     );
   }
 
+  function readStored(key) {
+    try {
+      return window.localStorage ? localStorage.getItem(key) : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function writeStored(key, value) {
+    try {
+      if (window.localStorage) localStorage.setItem(key, value);
+    } catch (err) {}
+  }
+
+  function loadMixFromPage() {
+    var rules = mixApi();
+    if (!rules) {
+      state.mix = {preset: "", lists: {"1": "model", "2": "model", "3": "model"}, months: {}, phases: {}};
+      return;
+    }
+    var query = new URLSearchParams(location.search);
+    if (query.get("mix")) state.mix = rules.parseMix(query.get("mix"));
+    else state.mix = rules.parseMix(readStored("hockey.mix") || "");
+    if (query.get("method") === "custom") state.method = "custom";
+    var phase = query.get("phase") || readStored("hockey.phase") || "combined";
+    state.phaseFilter = phase === "regular" || phase === "playoffs" ? phase : "combined";
+    var evalMode = query.get("eval") || readStored("hockey.eval") || "morning";
+    state.evalMode = evalMode === "full_day" ? "full_day" : "morning";
+  }
+
+  function writeMixQuery() {
+    var rules = mixApi();
+    if (!rules) return;
+    var url = new URL(location.href);
+    var encoded = rules.serializeMix(state.mix);
+    if (encoded) url.searchParams.set("mix", encoded);
+    else url.searchParams.delete("mix");
+    if (state.method === "custom") url.searchParams.set("method", "custom");
+    else url.searchParams.delete("method");
+    if (state.phaseFilter && state.phaseFilter !== "combined") url.searchParams.set("phase", state.phaseFilter);
+    else url.searchParams.delete("phase");
+    if (state.evalMode === "full_day") url.searchParams.set("eval", "full_day");
+    else url.searchParams.delete("eval");
+    writeStored("hockey.mix", encoded);
+    writeStored("hockey.phase", state.phaseFilter);
+    writeStored("hockey.eval", state.evalMode);
+    var next = url.pathname + url.search + url.hash;
+    if (next !== location.pathname + location.search + location.hash) {
+      history.replaceState(null, "", next);
+    }
+  }
+
+  function methodChoices() {
+    return knownMethods().filter(function (method) { return method.id !== "custom"; });
+  }
+
+  function methodSelect(value, onChange) {
+    var sel = document.createElement("select");
+    var empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "No override";
+    sel.appendChild(empty);
+    methodChoices().forEach(function (method) {
+      var opt = document.createElement("option");
+      opt.value = method.id;
+      opt.textContent = method.label;
+      sel.appendChild(opt);
+    });
+    sel.value = value || "";
+    sel.addEventListener("change", function () { onChange(sel.value); });
+    return sel;
+  }
+
+  function renderMixPanel() {
+    var panel = document.getElementById("mix-panel");
+    var rules = mixApi();
+    if (!panel || !rules) return;
+    var showPanel = state.method === "custom";
+    panel.hidden = !showPanel;
+    if (!showPanel) return;
+    clear(panel);
+    if (!state.mix) loadMixFromPage();
+    var mix = rules.copyMix(state.mix);
+    var preset = document.createElement("select");
+    [["", "Per list"], ["average", "Average of probabilities"], ["majority", "Majority of the three picks"]].forEach(function (pair) {
+      var opt = document.createElement("option");
+      opt.value = pair[0];
+      opt.textContent = pair[1];
+      preset.appendChild(opt);
+    });
+    preset.value = mix.preset;
+    preset.addEventListener("change", function () {
+      state.mix.preset = preset.value;
+      writeMixQuery();
+      renderMixPanel();
+      show(state.view);
+    });
+    var grid = h("div", {class: "mix-grid"});
+    ["1", "2", "3"].forEach(function (id) {
+      var sel = methodSelect(mix.lists[id], function (value) {
+        state.mix.lists[id] = value || "model";
+        writeMixQuery();
+        show(state.view);
+      });
+      if (!mix.lists[id]) sel.value = "model";
+      else sel.value = mix.lists[id];
+      if (mix.preset) sel.disabled = true;
+      grid.appendChild(h("label", null, "List " + id, sel));
+    });
+    var month = document.createElement("select");
+    [["", "Month"], ["10", "October"], ["11", "November"], ["12", "December"], ["1", "January"], ["2", "February"], ["3", "March"], ["4", "April"], ["5", "May"], ["6", "June"]].forEach(function (pair) {
+      var opt = document.createElement("option");
+      opt.value = pair[0];
+      opt.textContent = pair[1];
+      month.appendChild(opt);
+    });
+    var monthMethod = methodSelect("", function () {});
+    var chips = [];
+    Object.keys(mix.months).sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (key) {
+      var label = methodChoices().filter(function (method) { return method.id === mix.months[key]; })[0];
+      var monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      chips.push(h("button", {type: "button", class: "ghost", text: (monthNames[Number(key)] || key) + ": " + (label ? label.label : mix.months[key]), onclick: function () {
+        delete state.mix.months[key];
+        writeMixQuery();
+        renderMixPanel();
+        show(state.view);
+      }}));
+    });
+    panel.appendChild(h("div", null,
+      h("h2", {text: "Custom mix"}),
+      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. The page still opens on the logistic model."}),
+      h("div", {class: "mix-row"}, h("label", null, "Preset", preset)),
+      grid,
+      h("div", {class: "mix-row"},
+        h("label", null, "Month override", month),
+        h("label", null, "Method for that month", monthMethod),
+        h("button", {type: "button", class: "ghost", text: "Add month", onclick: function () {
+          if (!month.value || !monthMethod.value) return;
+          state.mix.months[String(Number(month.value))] = monthMethod.value;
+          writeMixQuery();
+          renderMixPanel();
+          show(state.view);
+        }})
+      ),
+      chips.length ? h("div", {class: "mix-row"}, chips) : null,
+      h("div", {class: "mix-row"},
+        h("label", null, "Regular season", methodSelect(mix.phases.regular || "", function (value) {
+          if (value) state.mix.phases.regular = value;
+          else delete state.mix.phases.regular;
+          writeMixQuery();
+          show(state.view);
+        })),
+        h("label", null, "Playoffs", methodSelect(mix.phases.playoffs || "", function (value) {
+          if (value) state.mix.phases.playoffs = value;
+          else delete state.mix.phases.playoffs;
+          writeMixQuery();
+          show(state.view);
+        }))
+      )
+    ));
+  }
+
+  function loadSeasonDays(base) {
+    if (state.dayCache[base]) return Promise.resolve(state.dayCache[base]);
+    if (state.dayLoads[base]) return state.dayLoads[base];
+    var job = fetch(base + "/days/index.json", {cache: "no-store"}).then(function (res) {
+      if (!res.ok) throw new Error("no index");
+      return res.json();
+    }).then(function (index) {
+      var dates = [];
+      (index && index.days || []).forEach(function (row) {
+        if (row && row.date) dates.push(row.date);
+      });
+      return Promise.all(dates.map(function (date) {
+        return fetch(base + "/days/" + date + ".json", {cache: "no-store"}).then(function (res) {
+          if (!res.ok) return null;
+          return res.json();
+        }).catch(function () { return null; });
+      }));
+    }).then(function (days) {
+      var clean = [];
+      (days || []).forEach(function (day) {
+        if (day && day.date) clean.push(day);
+      });
+      state.dayCache[base] = clean;
+      return clean;
+    }).catch(function () {
+      state.dayCache[base] = [];
+      return [];
+    });
+    state.dayLoads[base] = job;
+    return job;
+  }
+
+  function loadSummaryDoc() {
+    if (state.summaryDoc !== null) return Promise.resolve(state.summaryDoc);
+    return fetch("data/seasons/summary.json", {cache: "no-store"}).then(function (res) {
+      if (!res.ok) return null;
+      return res.json();
+    }).catch(function () { return null; }).then(function (doc) {
+      state.summaryDoc = doc || false;
+      return state.summaryDoc;
+    });
+  }
+
+  function ensureRecords() {
+    var bases = [];
+    if (state.allSeasons) {
+      (state.seasons || []).forEach(function (season) {
+        if (season.base) bases.push(season);
+      });
+    } else if (root) {
+      bases.push({id: state.seasonId || "live", base: root, label: ""});
+    }
+    return Promise.all(bases.map(function (season) {
+      return loadSeasonDays(season.base).then(function (days) {
+        days.forEach(function (day) {
+          if (!day.season) day.season = season.id;
+        });
+        return days;
+      });
+    })).then(function (groups) {
+      var all = [];
+      groups.forEach(function (days) { all = all.concat(days); });
+      state.catalog = all;
+      return loadSummaryDoc();
+    });
+  }
+
+  function metricsFor(methodId, phase) {
+    var rules = mixApi();
+    if (!rules) return null;
+    var mode = state.evalMode;
+    if (methodId !== "custom" && mode !== "full_day") {
+      var stored = rules.storedMetrics(state.allSeasons ? state.summaryDoc : state.season, methodId, phase);
+      if (!stored && state.allSeasons) stored = rules.storedMetrics(state.summaryDoc, methodId, phase);
+      if (stored && !(state.catalog && state.catalog.length)) return stored;
+      if (stored && !state.allSeasons) return stored;
+    }
+    if (state.catalog && state.catalog.length) {
+      return rules.computeMetrics(state.catalog, methodId, state.mix, knownMethods(), phase, mode);
+    }
+    if (methodId !== "custom") return rules.storedMetrics(state.summaryDoc, methodId, phase);
+    return null;
+  }
+
+  function metricText(row) {
+    if (!row || !row.picks) return "\u2014";
+    var days = row.days_with_hit == null ? "\u2014" : String(row.days_with_hit);
+    var streaks = row.streaks == null ? "\u2014" : String(row.streaks);
+    return pct(row.hit_rate) + " \u00b7 " + days + " days \u00b7 " + streaks + " streaks";
+  }
+
+  function renderMetrics(view) {
+    var rules = mixApi();
+    if (!rules) return;
+    var selected = state.method === "custom" ? rules.CUSTOM : methodMeta(state.season || {});
+    var phases = [
+      ["regular", "Regular season"],
+      ["playoffs", "Playoffs"],
+      ["combined", "Combined"]
+    ];
+    var filter = h("div", {class: "phase-filter"});
+    var anyFull = (state.catalog || []).some(function (day) { return mixApi() && mixApi().hasFullDay(day); });
+    if (!anyFull && mixApi() && mixApi().hasFullDay(state.today)) anyFull = true;
+    if (!anyFull && mixApi() && mixApi().hasFullDay(state.past)) anyFull = true;
+    if (anyFull) {
+      [["morning", "Morning list"], ["full_day", "Full day"]].forEach(function (pair) {
+        filter.appendChild(h("button", {
+          type: "button",
+          class: "ghost" + (state.evalMode === pair[0] ? " on" : ""),
+          text: pair[1],
+          onclick: function () {
+            state.evalMode = pair[0];
+            writeMixQuery();
+            show(state.view);
+          }
+        }));
+      });
+    }
+    phases.forEach(function (pair) {
+      filter.appendChild(h("button", {
+        type: "button",
+        class: "ghost" + (state.phaseFilter === pair[0] ? " on" : ""),
+        text: pair[1],
+        onclick: function () {
+          state.phaseFilter = pair[0];
+          writeMixQuery();
+          show(state.view);
+        }
+      }));
+    });
+    var blocks = phases.map(function (pair) {
+      var stats = h("div", {class: "stats"});
+      trackMethods(state.season || state.today || {}).forEach(function (method) {
+        var row = metricsFor(method.id, pair[0]);
+        stats.appendChild(h("div", {class: "stat" + (method.id === selected.id && state.phaseFilter === pair[0] ? " on" : "")},
+          h("b", {text: row && row.picks ? pct(row.hit_rate) : "\u2014"}),
+          h("span", {text: method.label + " \u00b7 " + metricText(row)})
+        ));
+      });
+      return h("div", {class: "metric-block"}, h("h3", {text: pair[1]}), stats);
+    });
+    var note = "Hit % is scored picks over picks. A day with at least one correct scorer counts once. A 7-day streak is seven game days in a row with a scorer; the run then starts over, and a day with no games is skipped. Days are still loading when a figure is a dash and day files exist.";
+    if (state.evalMode === "full_day") {
+      note += " Full day uses each group's full_day pick, the latest list up to game start.";
+    }
+    view.appendChild(h("section", {class: "card"},
+      h("div", {class: "dayhead"},
+        h("h2", {text: state.allSeasons ? "All seasons" : "Records"}),
+        h("p", {class: "muted", text: note})),
+      filter,
+      blocks
+    ));
+  }
+
   function renderSeason() {
     var view = document.getElementById("view-season");
     clear(view);
-    var season = state.season;
+    renderMetrics(view);
+    var season = state.allSeasons ? null : state.season;
     if (!season) {
+      if (!state.allSeasons) {
+        view.appendChild(h("section", {class: "card"},
+          h("h2", {text: "Season"}),
+          h("p", {class: "muted", text: "season.json has not been published yet."})));
+      }
+      if (!(state.catalog && state.catalog.length)) return;
+    }
+    if (!season && state.allSeasons) {
+      var selectedAll = methodMeta({});
+      var bodyAll = document.createElement("tbody");
+      (state.catalog || []).forEach(function (day) {
+        if (state.phaseFilter !== "combined" && mixApi() && mixApi().phaseOf(day) !== state.phaseFilter) return;
+        state.renderDay = day;
+        (day.groups || []).forEach(function (group) {
+          var block = pickOf(group, selectedAll.id) || {};
+          var hit = hitOf(group, selectedAll.id);
+          bodyAll.appendChild(h("tr", null,
+            h("td", {text: pretty(day.date)}),
+            h("td", {text: String(group.id)}),
+            h("td", {class: "player-name", text: block.name || "\u2014"}),
+            h("td", {text: formatBlock(block, selectedAll)}),
+            h("td", {class: hitClass(hit) === "hit" ? "ok" : "muted", text: hitText(hit)}),
+            h("td", {text: "\u2014"}),
+            h("td", {text: "\u2014"}),
+            h("td", {text: "\u2014"})
+          ));
+        });
+        state.renderDay = null;
+      });
       view.appendChild(h("section", {class: "card"},
-        h("h2", {text: "Season"}),
-        h("p", {class: "muted", text: "season.json has not been published yet."})));
+        h("h2", {text: "Every pick \u00b7 " + selectedAll.label}),
+        h("div", {class: "tablewrap season-table"},
+          h("table", {class: "data"},
+            h("thead", null, h("tr", null,
+              h("th", {text: "Date"}), h("th", {text: "Group"}), h("th", {text: "Pick"}),
+              h("th", {text: "Value"}), h("th", {text: "Hit"}), h("th", {text: ""}),
+              h("th", {text: ""}), h("th", {text: ""})
+            )),
+            bodyAll))
+      ));
       return;
     }
     var selected = methodMeta(season);
@@ -1716,23 +2134,53 @@
 
     var valueHeader = kindOf(selected) === "rank" ? "Goals/game" : "Probability";
     var body = document.createElement("tbody");
-    (viewSeason.days || []).forEach(function (day) {
-      (day.groups || []).forEach(function (group) {
-        var value = kindOf(selected) === "rank"
-          ? (typeof group.goals_per_game === "number" ? group.goals_per_game.toFixed(2) : "\u2014")
-          : pct(group.probability);
-        body.appendChild(h("tr", null,
-          h("td", {text: pretty(day.date)}),
-          h("td", {text: String(group.id)}),
-          h("td", {class: "player-name", text: group.pick || "\u2014"}),
-          h("td", {text: value}),
-          h("td", {class: hitClass(group.hit) === "hit" ? "ok" : "muted", text: hitText(group.hit)}),
-          h("td", {text: group.top3_hits == null ? "\u2014" : String(group.top3_hits)}),
-          h("td", {text: pct(group.random)}),
-          h("td", {text: pct(day.running_hit_rate)})
-        ));
+    var useDays = state.method === "custom" || state.phaseFilter !== "combined" || state.evalMode === "full_day";
+    var tableDays = useDays && state.catalog && state.catalog.length
+      ? state.catalog.filter(function (day) {
+        if (state.phaseFilter !== "combined" && mixApi() && mixApi().phaseOf(day) !== state.phaseFilter) return false;
+        if (!state.allSeasons && state.seasonId && day.season && day.season !== state.seasonId) return false;
+        return true;
+      })
+      : null;
+    if (tableDays) {
+      tableDays.forEach(function (day) {
+        state.renderDay = day;
+        (day.groups || []).forEach(function (group) {
+          var block = pickOf(group, selected.id) || {};
+          var hit = hitOf(group, selected.id);
+          body.appendChild(h("tr", null,
+            h("td", {text: pretty(day.date)}),
+            h("td", {text: String(group.id)}),
+            h("td", {class: "player-name", text: block.name || "\u2014"}),
+            h("td", {text: formatBlock(block, selected)}),
+            h("td", {class: hitClass(hit) === "hit" ? "ok" : "muted", text: hitText(hit)}),
+            h("td", {text: "\u2014"}),
+            h("td", {text: "\u2014"}),
+            h("td", {text: "\u2014"})
+          ));
+        });
+        state.renderDay = null;
       });
-    });
+    } else {
+      (viewSeason.days || []).forEach(function (day) {
+        if (state.phaseFilter !== "combined" && day.phase && mixApi() && mixApi().phaseOf(day) !== state.phaseFilter) return;
+        (day.groups || []).forEach(function (group) {
+          var value = kindOf(selected) === "rank"
+            ? (typeof group.goals_per_game === "number" ? group.goals_per_game.toFixed(2) : "\u2014")
+            : pct(group.probability);
+          body.appendChild(h("tr", null,
+            h("td", {text: pretty(day.date)}),
+            h("td", {text: String(group.id)}),
+            h("td", {class: "player-name", text: group.pick || "\u2014"}),
+            h("td", {text: value}),
+            h("td", {class: hitClass(group.hit) === "hit" ? "ok" : "muted", text: hitText(group.hit)}),
+            h("td", {text: group.top3_hits == null ? "\u2014" : String(group.top3_hits)}),
+            h("td", {text: pct(group.random)}),
+            h("td", {text: pct(day.running_hit_rate)})
+          ));
+        });
+      });
+    }
     var pickRows = body.children ? body.children.length : 0;
     view.appendChild(h("section", {class: "card"},
       h("h2", {text: "Every pick \u00b7 " + selected.label}),
@@ -1757,7 +2205,7 @@
     if (state.backtest && view === "today") view = "season";
     state.view = view;
     if (location.hash !== "#" + view) {
-      history.replaceState(null, "", "#" + view);
+      history.replaceState(null, "", location.pathname + location.search + "#" + view);
     }
     views.forEach(function (name) {
       var section = document.getElementById("view-" + name);
@@ -1768,12 +2216,20 @@
         btn.setAttribute("aria-pressed", name === view ? "true" : "false");
       }
     });
+    renderMixPanel();
     if (view === "today") renderToday();
     if (view === "past") {
       if (!state.past && state.pastDate) selectPast(state.pastDate);
       else renderPast();
     }
-    if (view === "season") renderSeason();
+    if (view === "season") {
+      renderSeason();
+      ensureRecords().then(function () {
+        if (state.view === "season") renderSeason();
+      });
+    } else if (state.method === "custom") {
+      ensureRecords();
+    }
   }
 
   function selectPast(iso) {
@@ -1833,6 +2289,19 @@
   }
 
   function selectSeason(id, fromUser) {
+    if (id === "all") {
+      state.seasonId = "all";
+      state.allSeasons = true;
+      state.backtest = false;
+      root = "data";
+      state.view = "season";
+      if (fromUser) writeSeasonQuery("all");
+      fillSeasonSelect();
+      updateChrome();
+      show("season");
+      return ensureRecords();
+    }
+    state.allSeasons = false;
     var chosen = state.seasons ? seasonById(state.seasons, id) : null;
     if (!chosen && state.seasons) chosen = defaultSeason(state.seasons);
     if (!chosen) {
@@ -1854,6 +2323,7 @@
 
   function boot() {
     bindPlayerDialog();
+    loadMixFromPage();
     var hash = (location.hash || "").replace("#", "");
     if (views.indexOf(hash) !== -1) state.view = hash;
     document.querySelectorAll("[data-view]").forEach(function (btn) {
@@ -1862,6 +2332,7 @@
     document.getElementById("method").addEventListener("change", function (event) {
       if (event.target.value) {
         state.method = event.target.value;
+        writeMixQuery();
         show(state.view);
       }
     });
@@ -1879,7 +2350,9 @@
     });
     loadManifest().then(function (seasons) {
       state.seasons = seasons;
-      var requested = seasonById(seasons, seasonIdFromQuery());
+      var requestedId = seasonIdFromQuery();
+      if (requestedId === "all") return selectSeason("all", false);
+      var requested = seasonById(seasons, requestedId);
       if (params.get("season") && !requested) writeSeasonQuery("");
       var chosen = requested || defaultSeason(seasons);
       return selectSeason(chosen.id, false);
