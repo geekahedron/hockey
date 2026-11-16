@@ -30,7 +30,7 @@ reads JSON:
 | --- | --- |
 | `data/today.json` | Today's three groups. Players sorted by the selected method, a bar per player, team, opponent, home or away, top pick highlighted. The summary lists each method's leader. |
 | `data/days/index.json` | The date list. |
-| `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. A non-empty `skipped` list is names left off the slate (no team or opponent, including a postponed game). `snapshots` lists players added, removed, or dropped because their game started. `lists` is who is still eligible. A player who left before their NHL start has `available: false` and `removed_at`. A player who disappeared at or after that start stays eligible, with `game_started`. `morning` is the first picks, for reference. The picks on each group are the current ones. |
+| `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. A non-empty `skipped` list is names left off the slate (no team or opponent, including a postponed game). `snapshots` lists players added, removed before their game, or dropped because the game started. `lists` is who can still be picked. Both kinds of drop are `available: false`. A scratch has `removed_at`. A game start has `start` and `game_started`. `morning` is the first picks, for reference. The recorded pick locks when that player's game starts. |
 | `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. `charts` is the year-to-date hit rate and cumulative hits for all three methods, plus the same pair of charts for each pick. |
 | `data/seasons.json` | Season list. Each row is `{id, label, base, backtest?}`. The page loads `base` for the id in `?season=`, and only an id in this file. Missing file: the page stays on the single live tree. |
 | `data/seasons/<id>/` | One extra season, same shapes as `data/` except there is no `today.json`. `season.json` and `days/index.json` may include `backtest`, `scope`, and `notes`. The 2025-26 backtest is dropped in here at deploy time. The daily rsync does not write or delete it. |
@@ -86,12 +86,13 @@ One run:
    computed first and are not rewritten. If Tims has not posted today's
    lists, `today.json` stays on the previous slate and the process exits 75.
 5. Writes `today.json` when today's lists were scored. The first lists are
-   the morning picks. A later list that adds or removes players appends a
-   snapshot and replaces the current picks. Players who leave before their
-   game starts stay on the day, grayed out, and are not eligible. Players
-   who disappear at or after their team's NHL start stay eligible, keep
-   their probabilities, and do not change the pick. A postponed game has
-   not started, so that drop is a removal. Season totals use the current picks.
+   the morning picks. A later check that adds or removes players appends a
+   snapshot. Anyone missing from a check is off the list. A player is also
+   off the list once their team's NHL start has passed, even if Tims still
+   lists them. The graded pick is whoever was the pick at the moment their
+   game started. A scratch before that start moves the pick. If every
+   candidate was scratched before a game, that group has no graded pick.
+   Season totals use the locked pick.
 
 The recorded pick is whoever the method ranks first on the current list
 (ties share it, and the hit is the fraction who scored). The first lists

@@ -82,6 +82,10 @@ def fill_method_hits(group):
             block["hit"] = None
             block["top3_hits"] = None
             continue
+        if block.get("locked") is False and _group_has_starts(group):
+            block["hit"] = None
+            block["top3_hits"] = None
+            continue
         pids = [int(pid) for pid in (block.get("pids") or [])]
         tied = [by_pid[pid] for pid in pids if pid in by_pid]
         if tied and all(player.get("scored") is not None for player in tied):
@@ -90,17 +94,27 @@ def fill_method_hits(group):
             )
         else:
             block["hit"] = None
-        top_ids = [int(pid) for pid in (block.get("top3") or [])]
-        top = [by_pid[pid] for pid in top_ids if pid in by_pid]
-        if top and all(player.get("scored") is not None for player in top):
-            block["top3_hits"] = int(sum(player["scored"] for player in top))
+        if block.get("locked") and not block.get("top3_locked"):
+            block["top3_hits"] = None
         else:
-            block["top3_hits"] = 0
+            top_ids = [int(pid) for pid in (block.get("top3") or [])]
+            top = [by_pid[pid] for pid in top_ids if pid in by_pid]
+            if top and all(player.get("scored") is not None for player in top):
+                block["top3_hits"] = int(sum(player["scored"] for player in top))
+            else:
+                block["top3_hits"] = 0
     return group
 
 
 def _on_current_list(player):
     return player.get("available", True) is not False
+
+
+def _group_has_starts(group):
+    for player in group.get("players") or []:
+        if player.get("start"):
+            return True
+    return False
 
 
 def apply_grade(day, payload):
@@ -147,21 +161,41 @@ def apply_grade(day, payload):
             count = int(goals.get(int(player["pid"]), 0))
             player["goals"] = count
             player["scored"] = 1 if count else 0
-        scorers = []
-        for player in eligible:
-            if player.get("scored"):
-                scorers.append(player["name"])
-        n = len(eligible)
-        scored_n = sum(player["scored"] for player in eligible)
-        tied = [player for player in eligible if player.get("pick")]
-        if tied:
-            hit = sum(player["scored"] for player in tied) / float(len(tied))
+        scorers = [player["name"] for player in players if player.get("scored")]
+        n = len(players)
+        scored_n = sum(player["scored"] for player in players)
+        model = (group.get("method_picks") or {}).get("model") or {}
+        if _group_has_starts(group):
+            if model.get("locked"):
+                wanted = set(int(pid) for pid in (model.get("pids") or []))
+                tied = [player for player in players if int(player["pid"]) in wanted]
+                if tied and all(player.get("scored") is not None for player in tied):
+                    hit = sum(player["scored"] for player in tied) / float(len(tied))
+                else:
+                    hit = None
+            else:
+                hit = None
+                tied = []
+            if model.get("top3_locked"):
+                top_ids = set(int(pid) for pid in (model.get("top3") or []))
+                top = [player for player in players if int(player["pid"]) in top_ids]
+                top3_hits = int(sum(player.get("scored") or 0 for player in top)) if top else 0
+            else:
+                top3_hits = 0 if hit is not None else None
         else:
-            hit = None
-        top = eligible[:3]
+            tied = [player for player in eligible if player.get("pick")]
+            if tied:
+                hit = sum(player["scored"] for player in tied) / float(len(tied))
+            else:
+                hit = None
+            top = eligible[:3]
+            top3_hits = int(sum(player["scored"] for player in top)) if top else 0
+            n = len(eligible)
+            scored_n = sum(player["scored"] for player in eligible)
+            scorers = [player["name"] for player in eligible if player.get("scored")]
         group["status"] = "graded"
         group["hit"] = None if hit is None else round(hit, 4)
-        group["top3_hits"] = int(sum(player["scored"] for player in top)) if top else 0
+        group["top3_hits"] = top3_hits
         group["random"] = round(scored_n / float(n), 4) if n else None
         group["n"] = n
         group["scorers"] = scorers

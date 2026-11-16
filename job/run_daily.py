@@ -366,10 +366,10 @@ def run(argv=None, get_json=None, tims_source=None):
                 observed = stamp_toronto()
                 existing = load_day(publish_dir, when.isoformat())
                 if existing is None:
-                    day = open_slate(scored, observed)
+                    day = open_slate(scored, observed, schedule_payload)
                     log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))
                 elif same_lists(existing, scored) and not args.rescore:
-                    day = note_seen(existing, observed)
+                    day = note_seen(existing, observed, schedule_payload)
                     log("lists unchanged %s" % when.isoformat())
                 else:
                     day = merge_lists(

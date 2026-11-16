@@ -199,7 +199,22 @@
   }
 
   function isAvailable(player) {
-    return !player || player.available !== false;
+    if (!player) return false;
+    if (player.available === false) return false;
+    var start = player.start ? new Date(player.start).getTime() : NaN;
+    if (!isNaN(start) && Date.now() >= start) return false;
+    return true;
+  }
+
+  function gameStartedFirst(player, now) {
+    var start = player && player.start ? new Date(player.start).getTime() : NaN;
+    if (isNaN(start)) return false;
+    if (player.unavailable_reason === "removed") return false;
+    var removed = player.removed_at ? new Date(player.removed_at).getTime() : NaN;
+    if (!isNaN(removed) && removed < start) return false;
+    var clock = now == null ? Date.now() : now;
+    if (player.unavailable_reason === "game_started" || player.game_started) return true;
+    return player.available === false || clock >= start;
   }
 
   function torontoClock(iso) {
@@ -221,7 +236,11 @@
   }
 
   function removedNote(player) {
-    if (!player || player.available !== false) return "";
+    if (!player || isAvailable(player)) return "";
+    if (gameStartedFirst(player)) {
+      var started = torontoClock(player.start || player.game_started_at);
+      return started ? "Game started " + started : "Game started";
+    }
     var when = torontoClock(player.removed_at || player.last_seen);
     if (!when) return "Removed from the Tims list";
     return "Removed from the Tims list at " + when;
@@ -292,7 +311,7 @@
     });
     return h("section", {class: "card", id: "list-changes"},
       h("h2", {text: "List changes"}),
-      h("p", {class: "muted small", text: "Tims changed who was available. Someone who left before their game is grayed out and is not a current pick. Someone who drops off after the game starts stays eligible."}),
+      h("p", {class: "muted small", text: "Anyone off the list is grayed out and cannot be picked. A scratch before the game says when Tims removed them. A game start says when that game began. The graded pick is the one whose game started while they were still the pick."}),
       h("ul", {class: "list-changes"}, items)
     );
   }
@@ -437,7 +456,7 @@
   function bestOf(players, method, kind) {
     var best = null;
     (players || []).forEach(function (p) {
-      if (p && p.available === false) return;
+      if (!isAvailable(p)) return;
       var v = kind === "rank" ? rankOf(p, method) : pOf(p, method);
       if (v == null) return;
       if (best == null || (kind === "rank" ? v < best : v > best)) best = v;
@@ -445,8 +464,23 @@
     return best;
   }
 
+  function pickLockedNow(group, method) {
+    var block = pickOf(group, method);
+    if (!block || !(block.pids || []).length) return false;
+    if (block.locked) return true;
+    var players = group && group.players || [];
+    return block.pids.every(function (pid) {
+      var found = null;
+      players.forEach(function (player) {
+        if (player.pid === pid) found = player;
+      });
+      return found && gameStartedFirst(found);
+    });
+  }
+
   function highlighted(player, players, method, mode, kind, group) {
-    if (player && player.available === false) return false;
+    if (pickLockedNow(group, method)) return isStoredPick(player, group, method);
+    if (!isAvailable(player)) return false;
     if (mode === "past") return isStoredPick(player, group, method);
     var best = bestOf(players, method, kind);
     var v = kind === "rank" ? rankOf(player, method) : pOf(player, method);
@@ -625,8 +659,8 @@
         player.name,
         on ? " " : null,
         on ? h("span", {class: "pill", text: "Pick"}) : null,
-        player.game_started && player.available !== false ? " " : null,
-        player.game_started && player.available !== false ? h("span", {class: "pill started", text: "Game started"}) : null),
+        !isAvailable(player) && gameStartedFirst(player) ? " " : null,
+        !isAvailable(player) && gameStartedFirst(player) ? h("span", {class: "pill started", text: "Game started"}) : null),
       h("span", {class: "pct", text: valueText})
     );
     var gone = removedNote(player);
@@ -639,7 +673,7 @@
       scoredText(player) ? h("span", {class: "scored", text: scoredText(player)}) : null
     );
     var stats = kindOf(selected) === "rank" ? styleLine(player) : "";
-    return h("div", {class: "player" + (on ? " pick" : "") + (player.available === false ? " removed" : "")},
+    return h("div", {class: "player" + (on ? " pick" : "") + (!isAvailable(player) ? " removed" : "")},
       row,
       meta,
       stats ? h("div", {class: "meta stats-line", text: stats}) : null,
@@ -652,7 +686,7 @@
     var selected = methodMeta(day);
     (day.groups || []).forEach(function (group) {
       var available = ordered((group.players || []).filter(isAvailable), selected.id, kindOf(selected));
-      var removed = (group.players || []).filter(function (player) { return player.available === false; });
+      var removed = (group.players || []).filter(function (player) { return !isAvailable(player); });
       var hit = hitOf(group, selected.id);
       var head = h("div", {class: "ghead"},
         h("h3", {text: "Group " + group.id}),
@@ -702,20 +736,21 @@
     var selected = methodMeta(day);
     (day.groups || []).forEach(function (group) {
       var available = ordered((group.players || []).filter(isAvailable), selected.id, kindOf(selected));
-      var removed = (group.players || []).filter(function (player) { return player.available === false; });
+      var removed = (group.players || []).filter(function (player) { return !isAvailable(player); });
       var players = available.concat(removed);
       var best = {};
       methods.forEach(function (method) {
         best[method.id] = bestOf(available, method.id, kindOf(method));
       });
       players.forEach(function (player) {
-        var gone = player.available === false;
+        var gone = !isAvailable(player);
         var who = player.name;
-        if (gone) {
+        if (gone && gameStartedFirst(player)) {
+          var startedAt = torontoClock(player.start || player.game_started_at);
+          who = player.name + (startedAt ? " \u00b7 game started " + startedAt : " \u00b7 game started");
+        } else if (gone) {
           var when = torontoClock(player.removed_at);
           who = player.name + (when ? " \u00b7 removed " + when : " \u00b7 removed");
-        } else if (player.game_started) {
-          who = player.name + " \u00b7 game started";
         }
         var cells = [
           h("td", {text: String(group.id)}),
