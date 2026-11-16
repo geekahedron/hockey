@@ -1477,7 +1477,7 @@
       };
     }
     return {
-      text: "Low-confidence slate (" + pct(chance) + " chance of at least one hit). Lists usually improve by 5 PM ET; check back after 5 PM to submit all three.",
+      text: "Low-confidence slate (" + pct(chance) + " chance of at least one hit). Later lists have scored slightly better on average; check back after 5 PM to submit all three.",
       tone: "low",
       chance: chance,
       footnote: rule.footnote

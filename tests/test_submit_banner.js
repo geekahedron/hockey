@@ -87,7 +87,7 @@ const low = context.submitAdvice(day([0.2, 0.2, 0.2]), morning);
 assertEqual(low.tone, "low", "low tone");
 assertEqual(
   low.text,
-  "Low-confidence slate (48.8% chance of at least one hit). Lists usually improve by 5 PM ET; check back after 5 PM to submit all three.",
+  "Low-confidence slate (48.8% chance of at least one hit). Later lists have scored slightly better on average; check back after 5 PM to submit all three.",
   "low copy"
 );
 
