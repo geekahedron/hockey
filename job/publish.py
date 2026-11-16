@@ -513,6 +513,12 @@ SEASONS_MANIFEST = [
         "base": "data/seasons/2025-26/",
         "backtest": True,
     },
+    {
+        "id": "2024-25",
+        "label": "2024-25 backtest",
+        "base": "data/seasons/2024-25/",
+        "backtest": True,
+    },
 ]
 
 

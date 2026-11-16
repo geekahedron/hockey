@@ -33,6 +33,7 @@ joblib file). The two extra methods use numpy only (`clones/`).
     days/index.json
     days/YYYY-MM-DD.json
     seasons/2025-26/                   backtest drop-in. rsync excludes seasons/
+    seasons/2024-25/                   backtest drop-in. rsync excludes seasons/
 ```
 
 `~/tims-hockey` stays outside `public_html` so the model, the raw files, and
@@ -178,6 +179,18 @@ rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/too
 
 Copy `web/index.html`, `web/app.js`, and `web/style.css` into
 `~/public_html/tools/hockey/` so the tiles show position and the dialog.
+
+Games missed on days already published come from the local box scores.
+This does not invent injury designations and does not change picks or grades.
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-absence \
+  --log ~/tims-hockey/logs/backfill-absence.log
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
 
 If the day files do not yet have the scoring-rate estimate and the
 goals-per-game ranking, run the backfill first. It calls the public NHL stats

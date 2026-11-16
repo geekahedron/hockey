@@ -205,10 +205,12 @@ def test_wrapper_rsync_keeps_the_backtest_tree(tmp_path):
     assert (kept / "days" / "index.json").read_text() == '{"days": []}\n'
     assert not (web / "stray.txt").exists()
     manifest = json.loads((web / "seasons.json").read_text())
-    assert [row["id"] for row in manifest] == ["2026-27", "2025-26"]
+    assert [row["id"] for row in manifest] == ["2026-27", "2025-26", "2024-25"]
     assert manifest[0]["base"] == "data/"
     assert manifest[1]["base"] == "data/seasons/2025-26/"
     assert manifest[1]["backtest"] is True
+    assert manifest[2]["base"] == "data/seasons/2024-25/"
+    assert manifest[2]["backtest"] is True
     args = (home / "tims-hockey" / "logs" / "rsync.args").read_text().splitlines()
     assert "--delete" in args
     assert "--exclude" in args

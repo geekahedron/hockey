@@ -174,9 +174,12 @@ def test_publish_layout_and_refuses_banned_content(tmp_path):
     for rel in ("today.json", "season.json", "seasons.json", "days/index.json", "days/2026-11-02.json"):
         assert os.path.isfile(tmp_path / rel)
     manifest = json.load(open(tmp_path / "seasons.json"))
-    assert [row["id"] for row in manifest] == ["2026-27", "2025-26"]
+    assert [row["id"] for row in manifest] == ["2026-27", "2025-26", "2024-25"]
     assert manifest[1]["backtest"] is True
     assert manifest[1]["base"] == "data/seasons/2025-26/"
+    assert manifest[2]["label"] == "2024-25 backtest"
+    assert manifest[2]["base"] == "data/seasons/2024-25/"
+    assert manifest[2]["backtest"] is True
     from job.publish import PublishError, assert_public
     dirty = {"pick": "x", "note": "see datadrivenhockey"}
     try:

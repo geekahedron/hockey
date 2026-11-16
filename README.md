@@ -33,7 +33,7 @@ reads JSON:
 | `data/days/YYYY-MM-DD.json` | One slate, including who scored once the games are final. A non-empty `skipped` list is names left off the slate (no team or opponent, including a postponed game). `snapshots` lists players added, removed before their game, or dropped because the game started. `lists` is who can still be picked. Both kinds of drop are `available: false`. A scratch has `removed_at`. A game start has `start` and `game_started`. `morning` is the first picks, for reference. The recorded pick locks when that player's game starts. |
 | `data/season.json` | Season tracker for every method: per-day pick, value, hit, running hit rate, top-3 hits, and the random baseline. `charts` is the year-to-date hit rate and cumulative hits for all three methods, plus the same pair of charts for each pick. |
 | `data/seasons.json` | Season list. Each row is `{id, label, base, backtest?}`. The page loads `base` for the id in `?season=`, and only an id in this file. Missing file: the page stays on the single live tree. |
-| `data/seasons/<id>/` | One extra season, same shapes as `data/` except there is no `today.json`. `season.json` and `days/index.json` may include `backtest`, `scope`, and `notes`. The 2025-26 backtest is dropped in here at deploy time. The daily rsync does not write or delete it. |
+| `data/seasons/<id>/` | One extra season, same shapes as `data/` except there is no `today.json`. `season.json` and `days/index.json` may include `backtest`, `scope`, and `notes`. The 2025-26 and 2024-25 backtests are dropped in here at deploy time. The daily rsync does not write or delete them. The manifest lists the live season first, then 2025-26, then 2024-25. |
 
 Views are Today, Past days, and Season. A season menu appears when `seasons.json` lists more than one season. The live season is the default. `?season=2025-26` opens the backtest. That season has no today card. Its note comes from `notes` on `season.json` and `days/index.json`. A long season collapses past days by month and scrolls the pick table. The method menu lists the three
 names above. The compare table on Today has a column per method. A matchup that has `start` (the NHL `startTimeUTC`) also shows that time in Toronto, such as BOS vs TOR · 7:00 PM, on the current pick, the morning pick, each player row, and the compare table. Past days do the same when the day file has it. No start leaves the matchup without a clock. A
@@ -132,7 +132,7 @@ and are not scored.
 
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
 `--no-grade`, `--rescore`, `--backfill-clones`, `--backfill-starts`,
-`--backfill-inputs`, `--relabel`, `--log`. A graded
+`--backfill-inputs`, `--backfill-absence`, `--relabel`, `--log`. A graded
 day is not scored again. `--rescore` recomputes a slate that is still pending.
 A still-pending day is graded if its games are final. If the available
 players are unchanged, the current picks stay. If players were added or
@@ -205,6 +205,20 @@ rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/too
 Copy `web/index.html`, `web/app.js`, and `web/style.css` into
 `~/public_html/tools/hockey/` when the page should show the position and
 the inputs dialog.
+
+Games missed are filled from the local box scores for days already
+published. Injury designations are not backfilled; they are stored from
+the day the feed is first read. Picks and grades stay put. `seasons/` is
+not read.
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-absence \
+  --log ~/tims-hockey/logs/backfill-absence.log
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
 
 If a day file does not yet have the scoring-rate estimate and the
 goals-per-game ranking, run `--backfill-clones` first. That walks every
