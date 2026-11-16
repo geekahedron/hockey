@@ -416,6 +416,8 @@ def run(argv=None, get_json=None, tims_source=None):
                 if payload:
                     stamped = json.loads(json.dumps(kept))
                     propagate_starts(stamped, payload)
+                    from job.grade import assign_phase
+                    assign_phase(stamped, payload)
                     if record_fingerprint(stamped) == record_fingerprint(kept):
                         kept = stamped
                         log("starts %s" % when.isoformat())
@@ -477,6 +479,9 @@ def run(argv=None, get_json=None, tims_source=None):
                         log("rescored pending %s" % when.isoformat())
                 if not args.no_grade:
                     apply_grade(day, schedule_payload)
+                else:
+                    from job.grade import assign_phase
+                    assign_phase(day, schedule_payload)
                 _stamp_status(day, getter, raw_dir, log)
                 publish_day(publish_dir, day, as_today=True)
         except GroupsSourceError as exc:

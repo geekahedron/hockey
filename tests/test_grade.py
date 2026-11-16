@@ -58,6 +58,34 @@ def _final(home, away, scorer_ids, shootout_ids=()):
     }
 
 
+def test_playoff_games_grade_like_the_regular_season():
+    players = [_player(1, "A", 0.4), _player(2, "B", 0.2)]
+    regular = _day("2026-04-20", [players])
+    playoff = _day("2026-04-20", [
+        [_player(1, "A", 0.4), _player(2, "B", 0.2)],
+    ])
+    regular_game = _final("EDM", "SJS", [1], shootout_ids=[2])
+    playoff_game = _final("EDM", "SJS", [1], shootout_ids=[2])
+    playoff_game["gameType"] = 3
+    apply_grade(regular, {"games": [regular_game]})
+    apply_grade(playoff, {"games": [playoff_game]})
+    assert regular["phase"] == "regular"
+    assert playoff["phase"] == "playoffs"
+    assert playoff["status"] == "graded"
+    assert playoff["groups"][0]["hit"] == regular["groups"][0]["hit"] == 1
+    assert playoff["groups"][0]["players"][0]["goals"] == 1
+    assert playoff["groups"][0]["players"][1]["goals"] == 0
+    assert playoff["groups"][0]["random"] == regular["groups"][0]["random"]
+    # Preseason is still ignored, so a type 1 game does not grade the day.
+    skipped = _day("2026-04-20", [[_player(1, "A", 0.4), _player(2, "B", 0.2)]])
+    preseason = _final("EDM", "SJS", [1])
+    preseason["gameType"] = 1
+    apply_grade(skipped, {"games": [preseason]})
+    assert skipped["phase"] == "regular"
+    assert skipped["groups"][0]["status"] == "pending"
+    assert skipped["groups"][0]["hit"] is None
+
+
 def test_goal_counts_ignore_shootout():
     payload = {"games": [_final("EDM", "SJS", [1], shootout_ids=[2])]}
     final, goals = goal_counts(payload)
@@ -174,12 +202,19 @@ def test_publish_layout_and_refuses_banned_content(tmp_path):
     for rel in ("today.json", "season.json", "seasons.json", "days/index.json", "days/2026-11-02.json"):
         assert os.path.isfile(tmp_path / rel)
     manifest = json.load(open(tmp_path / "seasons.json"))
-    assert [row["id"] for row in manifest] == ["2026-27", "2025-26", "2024-25"]
+    assert [row["id"] for row in manifest] == [
+        "2026-27", "2025-26", "2024-25", "2023-24", "2022-23", "2021-22",
+    ]
     assert manifest[1]["backtest"] is True
     assert manifest[1]["base"] == "data/seasons/2025-26/"
     assert manifest[2]["label"] == "2024-25 backtest"
     assert manifest[2]["base"] == "data/seasons/2024-25/"
     assert manifest[2]["backtest"] is True
+    assert manifest[5]["id"] == "2021-22"
+    assert manifest[5]["label"] == "2021-22 backtest"
+    assert manifest[5]["base"] == "data/seasons/2021-22/"
+    assert manifest[5]["backtest"] is True
+    assert all(row["id"] != "all" for row in manifest)
     from job.publish import PublishError, assert_public
     dirty = {"pick": "x", "note": "see datadrivenhockey"}
     try:

@@ -119,7 +119,7 @@ def assert_index(index):
 
 
 def test_page_sources_do_not_name_other_sites():
-    for name in ("app.js", "style.css"):
+    for name in ("app.js", "mix.js", "style.css"):
         text = open(os.path.join(WEB, name)).read()
         assert_clean(text, name)
         for host in ("nhle.com", "rbi.digital", "api."):

@@ -49,6 +49,13 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .dayhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin:6px 0 2px}
 .dayhead p{margin:0}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.mix-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.mix-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px}
+.mix-row label,.mix-grid label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:13px}
+.phase-filter{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.phase-filter button.on{background:var(--orange);color:#1a0d00;border-color:var(--orange)}
+.metric-block{margin-top:8px}
+.metric-block h3{margin:0 0 6px;font-size:15px}
 .summary .card{margin:0}
 .summary .who{font-weight:700;font-size:16px;margin:4px 0 2px}
 .summary .pct{color:var(--orange);font-weight:700;font-size:18px}
@@ -169,7 +176,7 @@ button.dialog-close:hover{background:rgba(255,140,26,.12);color:var(--ink)}
 .input-table td{padding:4px 8px 4px 0;border-bottom:1px solid var(--line);vertical-align:top}
 .input-table td.value{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 @media (max-width:900px){
-  .summary,.groups,.chart-grid{grid-template-columns:1fr}
+  .summary,.groups,.chart-grid,.mix-grid{grid-template-columns:1fr}
   .controls{margin-left:0}
   .leaders > div{grid-template-columns:minmax(0,1fr) auto}
 }

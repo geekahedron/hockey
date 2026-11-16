@@ -23,19 +23,64 @@ def _stamp():
     return dt.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+# None is an older score document that did not label the game. 2 is the
+# regular season. 3 is the playoffs. Other types, including preseason, stay out.
+_REGULAR_TYPES = (None, 2, "2")
+_PLAYOFF_TYPES = (3, "3")
+
+
+def _counts_for_grade(game):
+    return game.get("gameType") in _REGULAR_TYPES or game.get("gameType") in _PLAYOFF_TYPES
+
+
+def assign_phase(day, payload):
+    """Set ``day["phase"]`` from the games this slate's teams are in.
+
+    ``playoffs`` when those games are gameType 3. ``regular`` otherwise,
+    including a feed with no matching game. A mix of regular and playoff
+    games on the same slate stays regular.
+    """
+    if not isinstance(day, dict):
+        return day
+    teams = set()
+    for group in day.get("groups") or []:
+        for player in group.get("players") or []:
+            if player.get("team"):
+                teams.add(player["team"])
+    saw_playoff = False
+    saw_regular = False
+    if isinstance(payload, dict):
+        for game in payload.get("games") or []:
+            home = (game.get("homeTeam") or {}).get("abbrev")
+            away = (game.get("awayTeam") or {}).get("abbrev")
+            if teams and home not in teams and away not in teams:
+                continue
+            kind = game.get("gameType")
+            if kind in _PLAYOFF_TYPES:
+                saw_playoff = True
+            elif kind in _REGULAR_TYPES:
+                saw_regular = True
+    if saw_playoff and not saw_regular:
+        day["phase"] = "playoffs"
+    else:
+        day["phase"] = "regular"
+    return day
+
+
 def goal_counts(payload):
     """Return (final_by_team, goals_by_pid) from an NHL /v1/score/DATE body.
 
     final_by_team maps abbrev -> True when that team's game is OFF or FINAL,
     False when the game is listed but not over. Teams that are not on the
-    board are absent.
+    board are absent. Regular-season games (type 2) and playoff games
+    (type 3) both count. The goal rules are the same for both.
     """
     final = {}
     goals = {}
     if not isinstance(payload, dict):
         return final, goals
     for game in payload.get("games") or []:
-        if game.get("gameType") not in (None, 2, "2"):
+        if not _counts_for_grade(game):
             continue
         done = game.get("gameState") in ("OFF", "FINAL")
         for side in ("homeTeam", "awayTeam"):
@@ -123,6 +168,7 @@ def apply_grade(day, payload):
     Returns the same day dict. The hit is the current pick. Players no longer
     on the Tims list still receive scored and goals for reference.
     """
+    assign_phase(day, payload)
     final, goals = goal_counts(payload)
     for group in day.get("groups") or []:
         players = group.get("players") or []
