@@ -115,6 +115,7 @@ def score_groups(when, groups, schedule, clone_fetch=None):
     import pandas as pd
     import features
     import logistic_json
+    from job.inputs import model_inputs
 
     when = _as_date(when)
     ds = when.isoformat()
@@ -154,7 +155,7 @@ def score_groups(when, groups, schedule, clone_fetch=None):
         probs = logistic_json.predict_proba(frame)[:, 1]
 
     by_group = {}
-    for (gid, player, home, position), prob in zip(meta, probs):
+    for (gid, player, home, position), prob, feat in zip(meta, probs, rows):
         by_group.setdefault(gid, []).append({
             "pid": int(player["nhlPlayerId"]),
             "name": player.get("fullName") or "",
@@ -163,6 +164,7 @@ def score_groups(when, groups, schedule, clone_fetch=None):
             "home": int(home),
             "position": position,
             "probability": {"model": _round_prob(prob)},
+            "inputs": {"model": model_inputs(feat)},
             "pick": False,
             "scored": None,
             "goals": None,

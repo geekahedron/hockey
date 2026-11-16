@@ -127,6 +127,13 @@ def test_run_scores_and_then_grades(tmp_path, monkeypatch):
                 assert 0 < player["probability"]["model"] < 1
                 assert 0 < player["probability"]["ddh_style"] < 1
                 assert player["rank"]["hch_style"] >= 1
+                assert "p_base" in player["inputs"]["model"]
+                assert "log_p_base" in player["inputs"]["model"]
+                assert "log1p_cur_gp" in player["inputs"]["model"]
+                assert "role_pp1" not in player["inputs"]["model"]
+                assert "cur_gp" in player["inputs"]["estimate"]
+                assert "cur_toi" in player["inputs"]["estimate"]
+                assert "age" not in player["inputs"]["estimate"]
                 by_name[player["name"]] = player
             assert "model" in group["method_picks"]
             assert "ddh_style" in group["method_picks"]
@@ -135,6 +142,9 @@ def test_run_scores_and_then_grades(tmp_path, monkeypatch):
         # Schedule says EDM is home, so the file's AWAY flag is overridden.
         assert by_name["Star"]["home"] == 1
         assert by_name["Star"]["team"] == "EDM"
+        assert by_name["Star"]["position"] == "C"
+        assert by_name["Dee"]["position"] == "D"
+        assert by_name["Dee"]["inputs"]["estimate"]["is_d"] == 1
         assert by_name["Other"]["home"] == 0
         blob = json.dumps(today).lower()
         assert "datadrivenhockey" not in blob

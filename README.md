@@ -131,7 +131,8 @@ The Tims adapter also accepts the `pickGroups` shape in
 and are not scored.
 
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
-`--no-grade`, `--rescore`, `--backfill-clones`, `--backfill-starts`, `--relabel`, `--log`. A graded
+`--no-grade`, `--rescore`, `--backfill-clones`, `--backfill-starts`,
+`--backfill-inputs`, `--relabel`, `--log`. A graded
 day is not scored again. `--rescore` recomputes a slate that is still pending.
 A still-pending day is graded if its games are final. If the available
 players are unchanged, the current picks stay. If players were added or
@@ -179,6 +180,31 @@ rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/too
 
 Running it again changes nothing. A date whose score feed fails is left
 as it was.
+
+To add the per-player inputs behind each method, without changing
+probabilities, picks, or grades, run this on the host. It reads
+`today.json` and `days/YYYY-MM-DD.json` only. It does not open
+`data/seasons/`. Logistic inputs are rebuilt from the local box-score
+archive with the same feature builder the daily job uses. Scoring-rate
+inputs are rebuilt from the public NHL stats API, using totals through
+the day before each slate. Running it again writes the same values. A
+stats-feed failure still saves logistic inputs when the archive loaded,
+and leaves that date's scoring-rate inputs as they were. Exit 1 means at
+least one date could not be filled completely; run it again after the
+feed or the archive is available.
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-inputs \
+  --log ~/tims-hockey/logs/backfill-inputs.log
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
+
+Copy `web/index.html`, `web/app.js`, and `web/style.css` into
+`~/public_html/tools/hockey/` when the page should show the position and
+the inputs dialog.
 
 If a day file does not yet have the scoring-rate estimate and the
 goals-per-game ranking, run `--backfill-clones` first. That walks every

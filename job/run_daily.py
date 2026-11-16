@@ -139,6 +139,15 @@ def parse_args(argv):
         ),
     )
     parser.add_argument(
+        "--backfill-inputs",
+        action="store_true",
+        help=(
+            "Add the per-player inputs each method already uses to published days "
+            "and today.json. Does not change probabilities, picks, or grades, "
+            "and does not read seasons/."
+        ),
+    )
+    parser.add_argument(
         "--relabel",
         action="store_true",
         help=(
@@ -333,6 +342,11 @@ def run(argv=None, get_json=None, tims_source=None):
 
         if args.backfill_starts:
             failed = backfill_starts(publish_dir, getter, log)
+            return 1 if failed else 0
+
+        if args.backfill_inputs:
+            from job.inputs import backfill_inputs
+            failed = backfill_inputs(publish_dir, getter, raw_dir, log)
             return 1 if failed else 0
 
         if args.backfill_clones:
