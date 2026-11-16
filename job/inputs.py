@@ -75,8 +75,8 @@ def estimate_inputs(row):
     """Season totals and context the scoring-rate estimate already reads.
 
     Shots are included because the goals-per-game figures use them. Age and
-    individual expected goals are not on this row; the modal says they were
-    not recorded.
+    individual expected goals are not on this row, so the modal leaves those
+    rows out.
     """
     out = {}
     if not isinstance(row, dict):

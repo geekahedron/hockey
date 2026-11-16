@@ -17,7 +17,7 @@
   var root = fallbackRoot;
   var loadToken = 0;
 
-  var BACKTEST_NOTE = "Backtest: replayed on the 2025-26 regular season using each morning's lists. The logistic model here was trained on 2024-25 only. The scoring-rate estimate uses today's parameters. Graded on non-shootout NHL goals.";
+  var BACKTEST_NOTE = "Backtest of morning lists, graded on non-shootout goals. The logistic model was trained on earlier seasons.";
 
   var state = {
     view: "today",
@@ -176,21 +176,29 @@
     var note = document.getElementById("season-note");
     if (!note) return;
     clear(note);
-    if (!state.backtest) {
+    if (!state.backtest && !state.allSeasons) {
       note.hidden = true;
       return;
     }
     var notes = noteTexts();
     if (!notes.length) notes = [BACKTEST_NOTE];
+    var body = h("div", null);
     notes.forEach(function (text) {
-      note.appendChild(h("p", {text: text}));
+      body.appendChild(h("p", {text: text}));
     });
+    var details = h("details", null, h("summary", {text: "About this backtest"}), body);
+    if (readStored("hockey.seasonNote") === "open") details.open = true;
+    details.addEventListener("toggle", function () {
+      writeStored("hockey.seasonNote", details.open ? "open" : "");
+    });
+    note.appendChild(details);
     note.hidden = false;
   }
 
   function updateChrome() {
     var todayBtn = document.querySelector('[data-view="today"]');
-    if (todayBtn) todayBtn.hidden = !!state.backtest;
+    if (todayBtn) todayBtn.hidden = false;
+    document.body.classList.toggle("backtest", !!(state.backtest || state.allSeasons));
     var label = document.getElementById("season-label");
     if (label) label.hidden = !(state.seasons && state.seasons.length > 1);
     renderSeasonNote();
@@ -1023,8 +1031,12 @@
       ].forEach(function (pair) {
         rows.push({group: "This game", label: pair[1], value: raw(estimate, pair[0])});
       });
-      rows.push({group: "Not recorded", label: "Age", value: raw(estimate, "age")});
-      rows.push({group: "Not recorded", label: "Individual expected goals", value: raw(estimate, "ixg")});
+      var age = raw(estimate, "age");
+      var expected = raw(estimate, "ixg");
+      if (age !== "not recorded") rows.push({group: "Player", label: "Age", value: age});
+      if (expected !== "not recorded") {
+        rows.push({group: "Player", label: "Individual expected goals", value: expected});
+      }
       return rows;
     }
     function rankRows(method) {
@@ -1072,7 +1084,7 @@
         title: method.label || "Scoring-rate estimate",
         resultLabel: "Probability",
         result: probabilityText(method),
-        note: "Age is not recorded, and the estimate uses 27 when age is missing. Individual expected goals are not recorded. The fitted blend uses goals only, so that missing total does not change this estimate. When opponent or league goals against is missing, the estimate uses 3. Shots are listed with the season totals; this estimate does not use them.",
+        note: "Missing age uses 27, and missing individual expected goals use goals only, so those rows stay hidden. When opponent or league goals against is missing, the estimate uses 3. Shots are listed with the season totals; this estimate does not use them.",
         rows: estimateRows()
       };
     });
@@ -2138,13 +2150,17 @@
     var viewSeason = block || (selected.id === "model" || selected.id === season.method ? season : {summary: {}, days: []});
     var sum = viewSeason.summary || {};
     var compare = null;
-    if (season.by_method && methodsOf(season).length > 1) {
-      compare = h("div", {class: "records"}, methodsOf(season).map(function (method) {
-        var part = season.by_method[method.id] || {};
-        var partSum = part.summary || {};
+    function trackerRow(method) {
+      var computed = metricsFor(method.id, state.phaseFilter || "combined");
+      if (computed && computed.picks) return computed;
+      var part = season.by_method && season.by_method[method.id];
+      return (part && part.summary) || {};
+    }
+    if (trackMethods(season).length > 1) {
+      compare = h("div", {class: "records"}, trackMethods(season).map(function (method) {
         return h("p", {class: "record-line" + (method.id === selected.id ? " on" : "")},
           h("b", {text: method.label}),
-          " " + recordLine(partSum)
+          " " + recordLine(trackerRow(method))
         );
       }));
     }
@@ -2153,7 +2169,7 @@
         h("h2", {text: (season.season || "Season") + " tracker"}),
         h("p", {class: "muted", text: "Each method is graded on its current pick. Days already graded keep that result. The charts are year to date."})),
       compare,
-      h("p", {class: "record-line"}, recordLine(sum)),
+      h("p", {class: "record-line"}, recordLine(trackerRow(selected))),
       h("div", {class: "stats"},
         h("div", {class: "stat"}, h("b", {text: pct(sum.top3_rate)}), h("span", {text: "Top 3 scored"})),
         h("div", {class: "stat"}, h("b", {text: pct(sum.random_baseline)}), h("span", {text: "Random baseline"}))
@@ -2329,6 +2345,15 @@
     });
   }
 
+  function goLiveToday() {
+    var live = state.seasons && defaultSeason(state.seasons);
+    if (live && (state.backtest || state.allSeasons || (state.seasonId && state.seasonId !== live.id))) {
+      state.view = "today";
+      return selectSeason(live.id, true);
+    }
+    show("today");
+  }
+
   function selectSeason(id, fromUser) {
     if (id === "all") {
       state.seasonId = "all";
@@ -2368,7 +2393,11 @@
     var hash = (location.hash || "").replace("#", "");
     if (views.indexOf(hash) !== -1) state.view = hash;
     document.querySelectorAll("[data-view]").forEach(function (btn) {
-      btn.addEventListener("click", function () { show(btn.getAttribute("data-view")); });
+      btn.addEventListener("click", function () {
+        var next = btn.getAttribute("data-view");
+        if (next === "today") goLiveToday();
+        else show(next);
+      });
     });
     document.getElementById("method").addEventListener("change", function (event) {
       if (event.target.value) {

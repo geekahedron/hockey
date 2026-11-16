@@ -115,8 +115,8 @@ assertEqual(valueOf(sections[0].rows, "Log of shrunk goals per 60"), "-1.5", "lo
 assertEqual(valueOf(sections[0].rows, "Shrunk shots per 60 minutes"), "not recorded", "missing rate");
 assertEqual(sections[1].title, "Scoring-rate estimate", "estimate title");
 assertEqual(sections[1].result, "25.0%", "estimate probability");
-assertEqual(valueOf(sections[1].rows, "Age"), "not recorded", "age");
-assertEqual(valueOf(sections[1].rows, "Individual expected goals"), "not recorded", "expected goals");
+assertEqual(sections[1].rows.some(function (row) { return row.label === "Age"; }), false, "blank age is hidden");
+assertEqual(sections[1].rows.some(function (row) { return row.label === "Individual expected goals"; }), false, "blank expected goals are hidden");
 assertEqual(valueOf(sections[1].rows, "Games"), "10", "this season games");
 assertEqual(valueOf(sections[1].rows, "Rest days (1 means played yesterday)"), "1", "rest");
 assertEqual(sections[2].title, "Goals per game", "rank title");
@@ -129,7 +129,11 @@ if (sections[2].note.indexOf("does not compute a probability") < 0) {
 
 const blank = context.inputSections({}, methods);
 assertEqual(blank[0].result, "not recorded", "missing model probability");
-assertEqual(valueOf(blank[1].rows, "Age"), "not recorded", "age without a row");
+assertEqual(blank[1].rows.some(function (row) { return row.label === "Age"; }), false, "age without a row");
+var withAge = context.inputSections({
+  inputs: {estimate: {age: 27, cur_gp: 10}}
+}, methods);
+assertEqual(valueOf(withAge[1].rows, "Age"), "27", "stored age is shown");
 assertEqual(blank[2].result, null, "goals per game has no probability");
 
 if (src.indexOf('event.target === dialog') < 0) throw new Error("backdrop click is missing");
