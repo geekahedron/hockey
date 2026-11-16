@@ -34,6 +34,9 @@ joblib file). The two extra methods use numpy only (`clones/`).
     days/YYYY-MM-DD.json
     seasons/2025-26/                   backtest drop-in. rsync excludes seasons/
     seasons/2024-25/                   backtest drop-in. rsync excludes seasons/
+    seasons/2023-24/                   backtest drop-in. rsync excludes seasons/
+    seasons/2022-23/                   backtest drop-in. rsync excludes seasons/
+    seasons/2021-22/                   backtest drop-in. rsync excludes seasons/
 ```
 
 `~/tims-hockey` stays outside `public_html` so the model, the raw files, and
