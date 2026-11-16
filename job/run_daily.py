@@ -15,11 +15,13 @@ A grade that is still pending is success: the slate is published either way.
 The first lists of the day are kept as the morning picks. A later check
 that adds or removes players stores a snapshot and replaces the current
 picks. Season totals use the current picks. A day already graded at the
-start of the run keeps its picks and grades. The run still fills in any
+start of the run is not given a new Tims list. The run still fills in any
 missing NHL start times on that file.
 
 The run refreshes NHL results and grades every unfinished published day
-before it asks Tims for today. Grading math is unchanged.
+before it asks Tims for today. A graded day is graded again while a stored
+pick still has no hit. That pass locks the pick at game start from the
+latest list, then scores it. The model itself is unchanged.
 """
 import argparse
 import datetime as dt
@@ -48,6 +50,7 @@ from job.publish import PublishError, list_days, load_day, publish_day
 from job.refresh import RefreshError, refresh
 from job.score import ScoreError, schedule_map, score_groups
 from job.snapshots import (
+    apply_timeline,
     backfill_starts,
     merge_lists,
     note_seen,
@@ -194,10 +197,12 @@ def _shown_date(publish_dir):
 
 
 def _grade_published(publish_dir, getter, log):
-    """Grade unfinished days. Same apply_grade path as before, run first.
+    """Grade unfinished days, then score any final pick that never got a hit.
 
-    today.json is updated only when it already shows the day just graded,
-    so a missing morning slate leaves yesterday's graded file on the page.
+    Locking runs first, from the list already on the file, so a missed
+    evening check still freezes the pick at game start. today.json is
+    updated only when it already shows the day just graded, so a missing
+    morning slate leaves yesterday's graded file on the page.
     """
     shown = _shown_date(publish_dir)
     for saved in list_days(publish_dir):
@@ -209,6 +214,7 @@ def _grade_published(publish_dir, getter, log):
         if payload is None:
             log("grade skipped %s: score feed failed" % saved["date"])
             continue
+        apply_timeline(saved, stamp_toronto(), payload)
         apply_grade(saved, payload)
         publish_day(
             publish_dir, saved, as_today=(saved.get("date") == shown)
@@ -216,11 +222,35 @@ def _grade_published(publish_dir, getter, log):
         log("graded %s -> %s" % (saved["date"], saved["status"]))
 
 
+def _official_pick_ids(group):
+    """Player ids of the stored official pick, when one was published."""
+    model = (group.get("method_picks") or {}).get("model") or {}
+    pids = model.get("pids")
+    if pids is None:
+        pids = (group.get("pick") or {}).get("pids")
+    if pids:
+        return pids
+    found = []
+    for player in group.get("players") or []:
+        if player.get("pick") and player.get("pid") is not None:
+            found.append(player["pid"])
+    return found
+
+
 def _needs_grade(day):
+    """True while a group is unfinished or an official pick has no hit.
+
+    A graded day with a null hit used to be skipped forever. Empty groups
+    and groups that never had a pick stay finished.
+    """
+    if not isinstance(day, dict):
+        return False
     if day.get("status") != "graded":
         return True
     for group in day.get("groups") or []:
         if group.get("status") != "graded":
+            return True
+        if group.get("hit") is None and _official_pick_ids(group):
             return True
     return False
 

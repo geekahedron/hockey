@@ -687,8 +687,8 @@
     return line + " \u00b7 " + tag;
   }
 
-  function hitText(hit) {
-    if (hit == null) return "Pending";
+  function hitText(hit, status) {
+    if (hit == null) return status === "graded" ? "not graded" : "Pending";
     if (hit >= 0.999) return "Hit";
     if (hit <= 0.001) return "Miss";
     return Math.round(hit * 100) + "% of tie";
@@ -780,7 +780,7 @@
         h("div", {class: "ghead"},
           h("h3", {text: "Group " + group.id}),
           mode === "past" || day.status !== "pending"
-            ? h("span", {class: "pill " + hitClass(hit), text: hitText(hit)})
+            ? h("span", {class: "pill " + hitClass(hit), text: hitText(hit, group.status || day.status)})
             : null)
       ];
       if (!multi) {
@@ -1282,7 +1282,7 @@
       var hit = hitOf(group, selected.id);
       var head = h("div", {class: "ghead"},
         h("h3", {text: "Group " + group.id}),
-        h("span", {class: "pill " + hitClass(hit), text: mode === "today" && day.status === "pending" ? available.length + " players" : hitText(hit)})
+        h("span", {class: "pill " + hitClass(hit), text: mode === "today" && day.status === "pending" ? available.length + " players" : hitText(hit, group.status || day.status)})
       );
       var cardKids = [head];
       var block = pickOf(group, selected.id);
@@ -2124,7 +2124,7 @@
             h("td", {text: String(group.id)}),
             h("td", {class: "player-name", text: block.name || "\u2014"}),
             h("td", {text: formatBlock(block, selectedAll)}),
-            h("td", {class: hitClass(hit) === "hit" ? "ok" : "muted", text: hitText(hit)}),
+            h("td", {class: hitClass(hit) === "hit" ? "ok" : "muted", text: hitText(hit, group.status || day.status)}),
             h("td", {text: "\u2014"}),
             h("td", {text: "\u2014"}),
             h("td", {text: "\u2014"})
@@ -2210,7 +2210,7 @@
             h("td", {text: String(group.id)}),
             h("td", {class: "player-name", text: block.name || "\u2014"}),
             h("td", {text: formatBlock(block, selected)}),
-            h("td", {class: hitClass(hit) === "hit" ? "ok" : "muted", text: hitText(hit)}),
+            h("td", {class: hitClass(hit) === "hit" ? "ok" : "muted", text: hitText(hit, group.status || day.status)}),
             h("td", {text: "\u2014"}),
             h("td", {text: "\u2014"}),
             h("td", {text: "\u2014"})
@@ -2230,7 +2230,7 @@
             h("td", {text: String(group.id)}),
             h("td", {class: "player-name", text: group.pick || "\u2014"}),
             h("td", {text: value}),
-            h("td", {class: hitClass(group.hit) === "hit" ? "ok" : "muted", text: hitText(group.hit)}),
+            h("td", {class: hitClass(group.hit) === "hit" ? "ok" : "muted", text: hitText(group.hit, group.status || day.status)}),
             h("td", {text: group.top3_hits == null ? "\u2014" : String(group.top3_hits)}),
             h("td", {text: pct(group.random)}),
             h("td", {text: pct(day.running_hit_rate)})
