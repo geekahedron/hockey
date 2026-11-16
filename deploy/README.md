@@ -82,9 +82,12 @@ Two kinds of firing run the job:
   on yesterday's graded slate, and the next hour tries again. Once today
   is graded or partial, later morning firings skip. A pending slate still
   runs, so a list posted as pending can be checked again in that window.
-* List checks at 00:00, 03:00, 13:00, 15:30, 18:00, 18:30, 19:00, 19:30,
-  20:00, and 20:30. These run even after the morning slate is published.
-  The read is still only `HockeyPlayers`. Nothing submits a pick.
+* List checks at 00:00, 03:00, 12:30, 13:00, 14:00, 15:00, 15:30, 16:00,
+  17:00, 18:00, 18:30, 19:00, 19:30, 20:00, 20:30, 21:00, 21:30, and 22:00.
+  From 12:30 through 22:00 every one of those is on the hour or the half
+  hour, so `*/5` or `*/30` hits them. These run even after the morning
+  slate is published. The read is still only `HockeyPlayers`. Nothing
+  submits a pick.
 
 The first lists of the day are the morning picks. When a later check adds
 or removes players, the day file gains a `snapshots` entry (`time`, `added`,

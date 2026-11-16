@@ -201,8 +201,9 @@ the clock lives in `job/cron_run.sh`. Install a five-minute cadence and let
 the script decide. From 03:00 through 13:59 America/Toronto it retries the
 morning slate once an hour (minute 00 or 05) until today is graded or
 partial. Pending still runs. Exit 75 retries on the next hour. It also
-checks Tims at 00:00, 03:00, 13:00, 15:30, 18:00, 18:30, 19:00, 19:30,
-20:00, and 20:30 Toronto, including after the morning slate is up. Grading
+checks Tims at 00:00, 03:00, 12:30, 13:00, 14:00, 15:00, 15:30, 16:00,
+17:00, 18:00, 18:30, 19:00, 19:30, 20:00, 20:30, 21:00, 21:30, and 22:00
+Toronto, including after the morning slate is up. Grading
 still publishes, and that case is rsynced. `*/30` works in place of `*/5`;
 do not install both.
 

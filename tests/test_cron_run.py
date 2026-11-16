@@ -277,14 +277,46 @@ def test_late_evening_outside_a_slot_skips(tmp_path):
 
 
 def test_half_hour_slots_and_midnight_run(tmp_path):
-    for hour, minute in (("15", "30"), ("20", "30"), ("00", "00"), ("13", "00")):
+    slots = (
+        ("00", "00"), ("03", "00"), ("12", "30"), ("13", "00"),
+        ("14", "00"), ("15", "00"), ("15", "30"), ("16", "00"), ("17", "00"),
+        ("18", "00"), ("18", "30"), ("19", "00"), ("19", "30"),
+        ("20", "00"), ("20", "30"), ("21", "00"), ("21", "30"), ("22", "00"),
+    )
+    graded = '{"date": "2026-11-15", "status": "graded"}\n'
+    for hour, minute in slots:
         home, env = _at(
             tmp_path / ("%s%s" % (hour, minute)), hour, minute,
-            today_doc='{"date": "2026-11-15", "status": "graded"}\n',
+            today_doc=graded,
         )
         proc = _run(env)
         assert proc.returncode == 0, (hour, minute, proc.stderr)
         assert (home / "tims-hockey" / "logs" / "python.args").exists(), (hour, minute)
+
+
+def test_nearby_minutes_are_not_list_checks(tmp_path):
+    # 12:00 is the morning retry, not a list-check slot, so a graded day skips.
+    # 14:30, 16:30, 22:30, and 23:00 are neither.
+    home, env = _at(
+        tmp_path / "noon", "12", "00",
+        today_doc='{"date": "2026-11-15", "status": "graded"}\n',
+    )
+    proc = _run(env)
+    assert proc.returncode == 0
+    assert "skip today graded" in (home / "tims-hockey" / "logs" / "cron.log").read_text()
+    assert not (home / "tims-hockey" / "logs" / "python.args").exists()
+    for hour, minute, label in (
+        ("14", "30", "14:30"),
+        ("16", "30", "16:30"),
+        ("22", "30", "22:30"),
+        ("23", "00", "23:00"),
+    ):
+        home, env = _at(tmp_path / label.replace(":", ""), hour, minute)
+        proc = _run(env)
+        assert proc.returncode == 0
+        log = (home / "tims-hockey" / "logs" / "cron.log").read_text()
+        assert "skip time %s" % label in log
+        assert not (home / "tims-hockey" / "logs" / "python.args").exists()
 
 
 def test_morning_retry_is_once_per_hour(tmp_path):
@@ -320,7 +352,10 @@ def test_crontab_example_uses_toronto_slots():
     script = open(SCRIPT).read()
     assert "*/5 * * * * $HOME/tims-hockey/job/cron_run.sh" in example
     assert "CRON_TZ" in example
-    for slot in ("0000", "0300", "1300", "1530", "1800", "1830", "1900", "1930", "2000", "2030"):
+    for slot in (
+        "0000", "0300", "1230", "1300", "1400", "1500", "1530", "1600", "1700",
+        "1800", "1830", "1900", "1930", "2000", "2030", "2100", "2130", "2200",
+    ):
         assert slot in script
     assert "America/Toronto" in script
 

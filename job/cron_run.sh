@@ -13,8 +13,11 @@
 # Exit 75 means today's lists are not posted yet; the next hour retries.
 # A stamp file stops the other minute of that same hour from running again.
 #
-# List checks, even after the morning slate is up (America/Toronto):
-#   00:00 03:00 13:00 15:30 18:00 18:30 19:00 19:30 20:00 20:30
+# List checks, even after the morning slate is up (America/Toronto).
+# From 12:30 through 22:00 every slot is on the hour or half hour:
+#   00:00 03:00
+#   12:30 13:00 14:00 15:00 15:30 16:00 17:00
+#   18:00 18:30 19:00 19:30 20:00 20:30 21:00 21:30 22:00
 #
 # The job grades finished days before it asks Tims for lists. It never
 # submits a pick. One log line per invocation goes to
@@ -54,7 +57,7 @@ hhmm=$(printf '%02d%02d' "$hour" "$minute")
 
 snapshot=0
 case "$hhmm" in
-  0000|0300|1300|1530|1800|1830|1900|1930|2000|2030) snapshot=1 ;;
+  0000|0300|1230|1300|1400|1500|1530|1600|1700|1800|1830|1900|1930|2000|2030|2100|2130|2200) snapshot=1 ;;
 esac
 
 morning=0
