@@ -157,6 +157,28 @@ cd ~/tims-hockey
 rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
 ```
 
+Days published before the calculation inputs were stored need a one-time
+fill. This writes `inputs.model` (the logistic feature row, including the
+log columns the frozen model already builds) and `inputs.estimate` (the
+season totals the scoring-rate estimate already reads). Probabilities,
+picks, and grades stay put. `seasons/` is not read. Logistic inputs come
+from the local box-score archive. Scoring-rate inputs come from the public
+NHL stats API. Run it again any time. A stats-feed failure still saves
+logistic inputs when the archive loaded; rerun later for the rest. Exit 1
+means at least one date was incomplete.
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-inputs \
+  --log ~/tims-hockey/logs/backfill-inputs.log
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
+
+Copy `web/index.html`, `web/app.js`, and `web/style.css` into
+`~/public_html/tools/hockey/` so the tiles show position and the dialog.
+
 If the day files do not yet have the scoring-rate estimate and the
 goals-per-game ranking, run the backfill first. It calls the public NHL stats
 API for each slate from 2026-11-02, using totals through the previous day.

@@ -231,6 +231,7 @@ def attach_day(day, features, params=None):
     the two extra picks.
     """
     from clones import hch_clone
+    from job.inputs import estimate_inputs
     from job.score import METHODS
 
     by_pid = {}
@@ -263,6 +264,11 @@ def attach_day(day, features, params=None):
                 player.setdefault("rank", {})
                 player["rank"]["hch_style"] = int(ranks[pid])
                 player["style"] = hch_clone.data_points(prepared[pid])
+            stored = player.get("inputs")
+            if not isinstance(stored, dict):
+                stored = {}
+                player["inputs"] = stored
+            stored["estimate"] = estimate_inputs(prepared[pid])
         set_method_picks(group)
         if group.get("status") == "graded":
             from job.grade import fill_method_hits

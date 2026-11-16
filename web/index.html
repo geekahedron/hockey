@@ -34,6 +34,15 @@
   <section id="view-season" hidden></section>
 </main>
 <p class="foot">The logistic model uses shrunk player goals, shots, and ice time, plus the opponent, home or away, and rest. The scoring-rate estimate and the goals-per-game ranking are separate calculations from public NHL stats. Inspired by methods used by other public Hockey Challenge helper sites, including DataDrivenHockey and HockeyChallengeHelper. They are not those sites' ratings. Not affiliated with Tim Hortons or the NHL.</p>
+<dialog id="player-detail" class="player-dialog" aria-labelledby="player-detail-title">
+  <div class="dialog-card">
+    <div class="dialog-head">
+      <h2 id="player-detail-title">Player</h2>
+      <button type="button" class="dialog-close" id="player-detail-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="player-detail-body"></div>
+  </div>
+</dialog>
 <script src="app.js"></script>
 </body>
 </html>

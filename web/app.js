@@ -8,7 +8,8 @@
    reads player.probability[id] (0 to 1). kind "rank" reads
    player.rank[id] (1 is the top) and player.style for the public-stat
    line. The selector, the bars, and the compare table follow the JSON.
-   There is no second source and nothing here submits a pick. */
+   A player tile opens that player's inputs for the day. Missing inputs
+   say "not recorded". There is no second source and nothing here submits a pick. */
 (function () {
   var params = new URLSearchParams(location.search);
   var fallbackRoot = (params.get("data") || "data").replace(/[^a-zA-Z0-9_-]/g, "");
@@ -30,6 +31,7 @@
     seasonId: null,
     backtest: false
   };
+  var lastPlayerButton = null;
 
   var views = ["today", "past", "season"];
 
@@ -705,12 +707,367 @@
     return wrap;
   }
 
+  function positionLabel(code) {
+    var text = String(code == null ? "" : code).trim().toUpperCase();
+    if (text === "L" || text === "LW") return "LW";
+    if (text === "R" || text === "RW") return "RW";
+    if (text === "LD" || text === "RD" || text === "D") return "D";
+    if (text === "C" || text === "G" || text === "F") return text;
+    return text;
+  }
+
+  function formatInput(value) {
+    if (typeof value !== "number" || !isFinite(value)) return "not recorded";
+    var rounded = Math.round(value * 10000) / 10000;
+    if (Math.abs(rounded - Math.round(rounded)) < 1e-9) return String(Math.round(rounded));
+    return String(rounded);
+  }
+
+  function slateRows(player) {
+    player = player || {};
+    var style = player.style || {};
+    var estimate = (player.inputs && player.inputs.estimate) || {};
+    var lines = (player.inputs && player.inputs.lines) || {};
+
+    function count(styleKey, estimateKey) {
+      if (typeof style[styleKey] === "number") return String(style[styleKey]);
+      if (typeof estimate[estimateKey] === "number") return formatInput(estimate[estimateKey]);
+      return "not recorded";
+    }
+    function shotsPer() {
+      if (typeof style.shots_per_game === "number") return style.shots_per_game.toFixed(2);
+      if (typeof estimate.cur_sog === "number" && typeof estimate.cur_gp === "number" && estimate.cur_gp > 0) {
+        return (estimate.cur_sog / estimate.cur_gp).toFixed(2);
+      }
+      return "not recorded";
+    }
+    function shootPct() {
+      if (typeof style.shooting_pct === "number") return style.shooting_pct.toFixed(1) + "%";
+      if (typeof estimate.cur_g === "number" && typeof estimate.cur_sog === "number" && estimate.cur_sog > 0) {
+        return (100 * estimate.cur_g / estimate.cur_sog).toFixed(1) + "%";
+      }
+      return "not recorded";
+    }
+    function toi(styleKey, estimateKey) {
+      if (typeof style[styleKey] === "number") return style[styleKey].toFixed(2);
+      if (typeof estimate[estimateKey] === "number" && typeof estimate.cur_gp === "number" && estimate.cur_gp > 0) {
+        return (estimate[estimateKey] / estimate.cur_gp).toFixed(2);
+      }
+      return "not recorded";
+    }
+    function gpg() {
+      if (typeof style.goals_per_game === "number") return style.goals_per_game.toFixed(2);
+      if (typeof estimate.cur_g === "number" && typeof estimate.cur_gp === "number" && estimate.cur_gp > 0) {
+        return (estimate.cur_g / estimate.cur_gp).toFixed(2);
+      }
+      return "not recorded";
+    }
+    function gaa() {
+      if (typeof style.opp_ga_per_game === "number") return style.opp_ga_per_game.toFixed(2);
+      if (typeof estimate.opp_ga_pg === "number") return formatInput(estimate.opp_ga_pg);
+      return "not recorded";
+    }
+    function homeAway() {
+      if (style.home_away === "HOME") return "Home";
+      if (style.home_away === "AWAY") return "Away";
+      var home = player.home;
+      if (home == null && typeof estimate.home === "number") home = estimate.home;
+      if (home === 1 || home === "1") return "Home";
+      if (home === 0 || home === "0") return "Away";
+      return "not recorded";
+    }
+    function line(key) {
+      var value = lines[key];
+      if (typeof value === "string" && value) return value;
+      return "not recorded";
+    }
+    var pos = positionLabel(player.position);
+    return [
+      {label: "Pos", value: pos || "not recorded"},
+      {label: "GP", value: count("gp", "cur_gp")},
+      {label: "G", value: count("goals", "cur_g")},
+      {label: "Shots/GP", value: shotsPer()},
+      {label: "Shoot%", value: shootPct()},
+      {label: "PP TOI/GP", value: toi("pp_toi_per_game", "cur_pptoi")},
+      {label: "TOI/GP", value: toi("toi_per_game", "cur_toi")},
+      {label: "Goals/GP", value: gpg()},
+      {label: "EV line", value: line("ev")},
+      {label: "PP line", value: line("pp")},
+      {label: "Home/Away", value: homeAway()},
+      {label: "Opponent GAA", value: gaa()}
+    ];
+  }
+
+  function slateNote(rows) {
+    var ev = "";
+    var pp = "";
+    (rows || []).forEach(function (row) {
+      if (row.label === "EV line") ev = row.value;
+      if (row.label === "PP line") pp = row.value;
+    });
+    if (ev === "not recorded" && pp === "not recorded") {
+      return "Even-strength line and power-play line are not inputs to these calculations and are not recorded.";
+    }
+    return "";
+  }
+
+  function detailMethods(day) {
+    var methods = day && day.methods;
+    if (methods && methods.length) return methods;
+    return [
+      {id: "model", label: "Logistic model (player form + matchup)", kind: "probability"},
+      {id: "estimate", label: "Scoring-rate estimate", kind: "probability"},
+      {id: "goals", label: "Goals per game", kind: "rank"}
+    ];
+  }
+
+  function inputSections(player, methods) {
+    player = player || {};
+    var inputs = player.inputs || {};
+    var model = inputs.model || null;
+    var estimate = inputs.estimate || null;
+    var slate = slateRows(player);
+    methods = methods && methods.length ? methods : detailMethods(null);
+
+    function fromSlate(label) {
+      for (var i = 0; i < slate.length; i++) {
+        if (slate[i].label === label) return slate[i].value;
+      }
+      return "not recorded";
+    }
+    function raw(source, key) {
+      if (!source || typeof source[key] !== "number") return "not recorded";
+      return formatInput(source[key]);
+    }
+    function probabilityText(method) {
+      var bag = player.probability || {};
+      if (method.id && typeof bag[method.id] === "number") return (bag[method.id] * 100).toFixed(1) + "%";
+      return "not recorded";
+    }
+    function modelRows() {
+      var fields = [
+        ["home", "Home (1) or away (0)"],
+        ["is_d", "Defenseman (1) or forward (0)"],
+        ["cur_gp", "Games this season"],
+        ["prev_gp", "Games last season"],
+        ["g60", "Shrunk goals per 60 minutes"],
+        ["s60", "Shrunk shots per 60 minutes"],
+        ["sh", "Shrunk shooting rate"],
+        ["xg60", "Shrunk shots per 60 times shooting rate"],
+        ["prior_g60", "Prior goals per 60 minutes"],
+        ["prior_s60", "Prior shots per 60 minutes"],
+        ["toi_hat", "Expected ice time (minutes)"],
+        ["pp_hat", "Expected power-play ice time (minutes)"],
+        ["l5_toi", "Ice time over the last 5 games (minutes)"],
+        ["opp_ga", "Opponent goals against per game"],
+        ["opp_sa", "Opponent shots against per game"],
+        ["opp_sv", "Opponent save percentage"],
+        ["tm_gf", "Own team goals per game"],
+        ["b2b", "Back-to-back (1 if the team played yesterday)"],
+        ["opp_b2b", "Opponent back-to-back"],
+        ["lam_g", "Goal-rate baseline"],
+        ["lam_x", "Shot-based baseline"],
+        ["p_base", "Poisson baseline probability"]
+      ];
+      var logs = [
+        ["log_g60", "Log of shrunk goals per 60"],
+        ["log_s60", "Log of shrunk shots per 60"],
+        ["log_sh", "Log of shrunk shooting rate"],
+        ["log_xg60", "Log of shrunk shots per 60 times shooting rate"],
+        ["log_prior_g60", "Log of prior goals per 60"],
+        ["log_prior_s60", "Log of prior shots per 60"],
+        ["log_lam_g", "Log of the goal-rate baseline"],
+        ["log_lam_x", "Log of the shot-based baseline"],
+        ["log_p_base", "Log of the Poisson baseline"],
+        ["log1p_cur_gp", "Log1p of games this season (used instead of the raw count)"],
+        ["log1p_prev_gp", "Log1p of games last season (used instead of the raw count)"]
+      ];
+      var rows = fields.map(function (pair) {
+        return {group: "Player and matchup", label: pair[1], value: raw(model, pair[0])};
+      });
+      logs.forEach(function (pair) {
+        rows.push({group: "Log transform", label: pair[1], value: raw(model, pair[0])});
+      });
+      return rows;
+    }
+    function estimateRows() {
+      var seasons = [
+        ["cur", "This season"],
+        ["prev", "Last season"],
+        ["prev2", "Two seasons ago"],
+        ["prev3", "Three seasons ago"]
+      ];
+      var fields = [
+        ["gp", "Games"],
+        ["g", "Goals"],
+        ["sog", "Shots"],
+        ["toi", "Ice time (minutes)"],
+        ["pptoi", "Power-play ice time (minutes)"],
+        ["ppg", "Power-play goals"]
+      ];
+      var rows = [];
+      seasons.forEach(function (season) {
+        fields.forEach(function (field) {
+          rows.push({
+            group: season[1],
+            label: field[1],
+            value: raw(estimate, season[0] + "_" + field[0])
+          });
+        });
+      });
+      [
+        ["is_d", "Defenseman (1) or forward (0)"],
+        ["home", "Home (1) or away (0)"],
+        ["opp_ga_pg", "Opponent goals against per game"],
+        ["lg_ga_pg", "League goals against per game"],
+        ["rest_t", "Rest days (1 means played yesterday)"]
+      ].forEach(function (pair) {
+        rows.push({group: "This game", label: pair[1], value: raw(estimate, pair[0])});
+      });
+      rows.push({group: "Not recorded", label: "Age", value: raw(estimate, "age")});
+      rows.push({group: "Not recorded", label: "Individual expected goals", value: raw(estimate, "ixg")});
+      return rows;
+    }
+    function rankRows(method) {
+      var bag = player.rank || {};
+      var rank = "not recorded";
+      if (method.id && typeof bag[method.id] === "number") rank = "#" + bag[method.id];
+      var shots = "not recorded";
+      if (player.style && typeof player.style.shots === "number") shots = String(player.style.shots);
+      else if (estimate && typeof estimate.cur_sog === "number") shots = formatInput(estimate.cur_sog);
+      return [
+        {label: "Rank in this group", value: rank},
+        {label: "Goals per game", value: fromSlate("Goals/GP")},
+        {label: "Games", value: fromSlate("GP")},
+        {label: "Goals", value: fromSlate("G")},
+        {label: "Shots", value: shots},
+        {label: "Shots per game", value: fromSlate("Shots/GP")},
+        {label: "Shooting percentage", value: fromSlate("Shoot%")},
+        {label: "Ice time per game", value: fromSlate("TOI/GP")},
+        {label: "Power-play ice time per game", value: fromSlate("PP TOI/GP")},
+        {label: "Opponent goals against per game", value: fromSlate("Opponent GAA")},
+        {label: "Home or away", value: fromSlate("Home/Away")}
+      ];
+    }
+
+    return methods.map(function (method) {
+      if (method.kind === "rank") {
+        return {
+          title: method.label || "Goals per game",
+          resultLabel: null,
+          result: null,
+          note: "This method ranks by goals per game. It does not compute a probability. Ties break toward the lower player id.",
+          rows: rankRows(method)
+        };
+      }
+      if (method.id === "model") {
+        return {
+          title: method.label || "Logistic model (player form + matchup)",
+          resultLabel: "Probability",
+          result: probabilityText(method),
+          note: "These are the values the model reads. It also takes the log of the rate fields, and log1p of the game counts in place of the raw counts.",
+          rows: modelRows()
+        };
+      }
+      return {
+        title: method.label || "Scoring-rate estimate",
+        resultLabel: "Probability",
+        result: probabilityText(method),
+        note: "Age is not recorded, and the estimate uses 27 when age is missing. Individual expected goals are not recorded. The fitted blend uses goals only, so that missing total does not change this estimate. When opponent or league goals against is missing, the estimate uses 3. Shots are listed with the season totals; this estimate does not use them.",
+        rows: estimateRows()
+      };
+    });
+  }
+
+  function renderInputSection(block) {
+    var kids = [h("h3", {text: block.title})];
+    if (block.note) kids.push(h("p", {class: "input-note", text: block.note}));
+    if (block.resultLabel) {
+      kids.push(h("p", {class: "input-result"}, block.resultLabel + ": ", h("b", {text: block.result})));
+    }
+    var table = h("table", {class: "input-table"});
+    var body = h("tbody");
+    var lastGroup = "";
+    (block.rows || []).forEach(function (row) {
+      if (row.group && row.group !== lastGroup) {
+        lastGroup = row.group;
+        body.appendChild(h("tr", null, h("th", {colspan: "2", text: row.group})));
+      }
+      body.appendChild(h("tr", null,
+        h("td", {text: row.label}),
+        h("td", {class: "value", text: row.value})
+      ));
+    });
+    table.appendChild(body);
+    kids.push(table);
+    return h("section", {class: "input-section"}, kids);
+  }
+
+  function openPlayer(player, day, group, trigger) {
+    var dialog = document.getElementById("player-detail");
+    var title = document.getElementById("player-detail-title");
+    var body = document.getElementById("player-detail-body");
+    if (!dialog || !title || !body) return;
+    lastPlayerButton = trigger || null;
+    title.textContent = player.name || "Player";
+    clear(body);
+    var pos = positionLabel(player.position);
+    var bits = [];
+    if (group && group.id != null) bits.push("Group " + group.id);
+    if (pos) bits.push(pos);
+    var game = matchup(player, day);
+    if (game) bits.push(game);
+    if (bits.length) body.appendChild(h("p", {class: "dialog-kicker", text: bits.join(" \u00b7 ")}));
+    var gone = removedNote(player);
+    if (gone) body.appendChild(h("p", {class: "removed-note", text: gone}));
+    var slate = slateRows(player);
+    body.appendChild(renderInputSection({
+      title: "Inputs for this slate",
+      note: slateNote(slate),
+      rows: slate
+    }));
+    inputSections(player, detailMethods(day)).forEach(function (block) {
+      body.appendChild(renderInputSection(block));
+    });
+    if (dialog.showModal) dialog.showModal();
+    else dialog.setAttribute("open", "");
+    var closeBtn = document.getElementById("player-detail-close");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function bindPlayerDialog() {
+    var dialog = document.getElementById("player-detail");
+    var closeBtn = document.getElementById("player-detail-close");
+    if (!dialog || dialog.getAttribute("data-bound")) return;
+    dialog.setAttribute("data-bound", "1");
+    function closePlayer() {
+      if (dialog.open) dialog.close();
+      else dialog.removeAttribute("open");
+    }
+    if (closeBtn) closeBtn.addEventListener("click", closePlayer);
+    dialog.addEventListener("click", function (event) {
+      if (event.target === dialog) closePlayer();
+    });
+    dialog.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closePlayer();
+    });
+    dialog.addEventListener("close", function () {
+      if (lastPlayerButton && lastPlayerButton.focus) lastPlayerButton.focus();
+      lastPlayerButton = null;
+    });
+  }
+
   function renderPlayer(player, players, method, mode, group, day) {
     var selected = method && method.id ? method : methodMeta(null);
     var valueText = formatMethodValue(player, selected);
     var on = highlighted(player, players, selected.id, mode, kindOf(selected), group);
+    var pos = positionLabel(player.position);
     var row = h("div", {class: "row"},
       h("span", {class: "name"},
+        pos ? h("span", {class: "pill pos", text: pos}) : null,
+        pos ? " " : null,
         player.name,
         on ? " " : null,
         on ? h("span", {class: "pill", text: "Pick"}) : null,
@@ -721,14 +1078,29 @@
     var gone = removedNote(player);
     var meta = h("div", {class: "meta"},
       matchup(player, day),
-      player.position ? " \u00b7 " + player.position : "",
       gone ? " \u00b7 " : "",
       gone ? h("span", {class: "removed-note", text: gone}) : null,
       scoredText(player) ? " \u00b7 " : "",
       scoredText(player) ? h("span", {class: "scored", text: scoredText(player)}) : null
     );
     var stats = kindOf(selected) === "rank" ? styleLine(player) : "";
-    return h("div", {class: "player" + (on ? " pick" : "") + (!isAvailable(player) ? " removed" : "")},
+    var aria = (player.name || "Player") + (pos ? ", " + pos : "");
+    if (on) aria += ", pick";
+    if (!isAvailable(player)) aria += ", no longer on the list";
+    aria += ". Show calculation inputs.";
+    return h("div", {
+      class: "player" + (on ? " pick" : "") + (!isAvailable(player) ? " removed" : ""),
+      role: "button",
+      tabindex: "0",
+      "aria-haspopup": "dialog",
+      "aria-label": aria,
+      onclick: function (event) { openPlayer(player, day, group, event.currentTarget); },
+      onkeydown: function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openPlayer(player, day, group, event.currentTarget);
+      }
+    },
       row,
       meta,
       stats ? h("div", {class: "meta stats-line", text: stats}) : null,
@@ -1427,6 +1799,7 @@
   }
 
   function boot() {
+    bindPlayerDialog();
     var hash = (location.hash || "").replace("#", "");
     if (views.indexOf(hash) !== -1) state.view = hash;
     document.querySelectorAll("[data-view]").forEach(function (btn) {
