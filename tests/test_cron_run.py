@@ -39,6 +39,7 @@ def _home(tmp_path, hour, today_doc=None, exit_code=75):
         "day=\"${CRON_TEST_DATE:-2026-11-15}\"\n"
         "case \"$1\" in\n"
         "  +%H) printf '%s\\n' \"$hour\" ;;\n"
+        "  +%M) minute=\"${CRON_TEST_MINUTE:-05}\"; printf '%s\\n' \"$minute\" ;;\n"
         "  +%Y-%m-%d) printf '%s\\n' \"$day\" ;;\n"
         "  '+%Y-%m-%d %H:%M:%S') printf '%s 03:05:00\\n' \"$day\" ;;\n"
         "  *) printf '%s\\n' \"$day\" ;;\n"
@@ -143,7 +144,7 @@ def test_wrapper_skips_outside_the_toronto_window(tmp_path):
     proc = _run(env)
     assert proc.returncode == 0
     log = (home / "tims-hockey" / "logs" / "cron.log").read_text()
-    assert "skip hour 2" in log
+    assert "skip time 2:05" in log
     assert not (home / "tims-hockey" / "logs" / "python.args").exists()
 
 
@@ -245,6 +246,83 @@ def test_real_rsync_exclude_does_not_touch_seasons(tmp_path):
     assert (dest / "today.json").is_file()
     assert (dest / "seasons.json").is_file()
     assert not (dest / "seasons" / "2025-26" / "from-publish").exists()
+
+
+def _at(tmp_path, hour, minute, today_doc=None, exit_code=0):
+    home, env = _home(tmp_path, hour, today_doc=today_doc, exit_code=exit_code)
+    env["CRON_TEST_MINUTE"] = minute
+    return home, env
+
+
+def test_snapshot_slot_checks_lists_after_today_is_graded(tmp_path):
+    home, env = _at(
+        tmp_path, "18", "00",
+        today_doc='{"date": "2026-11-15", "status": "graded"}\n',
+    )
+    proc = _run(env)
+    assert proc.returncode == 0, proc.stderr
+    assert (home / "tims-hockey" / "logs" / "python.args").exists()
+    log = (home / "tims-hockey" / "logs" / "cron.log").read_text()
+    assert "skip today" not in log
+    assert "exit 0 rsync" in log
+
+
+def test_late_evening_outside_a_slot_skips(tmp_path):
+    home, env = _at(tmp_path, "18", "05")
+    proc = _run(env)
+    assert proc.returncode == 0
+    log = (home / "tims-hockey" / "logs" / "cron.log").read_text()
+    assert "skip time 18:05" in log
+    assert not (home / "tims-hockey" / "logs" / "python.args").exists()
+
+
+def test_half_hour_slots_and_midnight_run(tmp_path):
+    for hour, minute in (("15", "30"), ("20", "30"), ("00", "00"), ("13", "00")):
+        home, env = _at(
+            tmp_path / ("%s%s" % (hour, minute)), hour, minute,
+            today_doc='{"date": "2026-11-15", "status": "graded"}\n',
+        )
+        proc = _run(env)
+        assert proc.returncode == 0, (hour, minute, proc.stderr)
+        assert (home / "tims-hockey" / "logs" / "python.args").exists(), (hour, minute)
+
+
+def test_morning_retry_is_once_per_hour(tmp_path):
+    home, env = _at(tmp_path, "04", "00", exit_code=75)
+    first = _run(env)
+    assert first.returncode == 75
+    args = home / "tims-hockey" / "logs" / "python.args"
+    assert args.exists()
+    args.unlink()
+    env["CRON_TEST_MINUTE"] = "05"
+    second = _run(env)
+    assert second.returncode == 0
+    assert not args.exists()
+    log = (home / "tims-hockey" / "logs" / "cron.log").read_text()
+    assert "skip time 4:05" in log
+    assert "exit 75 rsync" in log
+
+
+def test_graded_morning_hour_still_skips_off_slot(tmp_path):
+    home, env = _at(
+        tmp_path, "09", "05",
+        today_doc='{"date": "2026-11-15", "status": "graded"}\n',
+    )
+    proc = _run(env)
+    assert proc.returncode == 0
+    log = (home / "tims-hockey" / "logs" / "cron.log").read_text()
+    assert "skip today graded" in log
+    assert not (home / "tims-hockey" / "logs" / "python.args").exists()
+
+
+def test_crontab_example_uses_toronto_slots():
+    example = open(os.path.join(ROOT, "job", "cron.example")).read()
+    script = open(SCRIPT).read()
+    assert "*/5 * * * * $HOME/tims-hockey/job/cron_run.sh" in example
+    assert "CRON_TZ" in example
+    for slot in ("0000", "0300", "1300", "1530", "1800", "1830", "1900", "1930", "2000", "2030"):
+        assert slot in script
+    assert "America/Toronto" in script
 
 
 def test_wrapper_does_not_rsync_a_hard_error(tmp_path):

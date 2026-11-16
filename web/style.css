@@ -67,6 +67,15 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .pickline{color:var(--muted);font-size:12.5px;margin:0 0 8px}
 .player{padding:7px 8px 8px;border-top:1px solid var(--line)}
 .player.pick{background:var(--navy3);box-shadow:inset 3px 0 0 var(--orange);border-radius:8px}
+.player.removed{opacity:.72}
+.player.removed .name,.player.removed .pct{color:var(--muted);font-weight:600}
+.player.removed .bar > i{background:var(--line)}
+.removed-note{color:var(--muted)}
+.morning-pick{margin-top:4px}
+.morning-banner{margin:4px 0 0}
+.list-changes{margin:8px 0 0;padding-left:18px}
+.list-changes li{margin:2px 0}
+table.data tbody tr.removed td{color:var(--muted)}
 .player .row{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .player .name{font-weight:700}
 .player .name .pill{margin-left:6px;font-weight:600}

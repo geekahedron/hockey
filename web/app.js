@@ -198,6 +198,110 @@
     if (state.seasonId) sel.value = state.seasonId;
   }
 
+  function isAvailable(player) {
+    return !player || player.available !== false;
+  }
+
+  function torontoClock(iso) {
+    if (!iso) return "";
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return "";
+    try {
+      var text = new Intl.DateTimeFormat("en-CA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZone: "America/Toronto"
+      }).format(date);
+      var match = String(text).match(/(\d{2}):(\d{2})/);
+      return match ? match[1] + ":" + match[2] : "";
+    } catch (err) {
+      return "";
+    }
+  }
+
+  function removedNote(player) {
+    if (!player || player.available !== false) return "";
+    var when = torontoClock(player.removed_at || player.last_seen);
+    if (!when) return "Removed from the Tims list";
+    return "Removed from the Tims list at " + when;
+  }
+
+  function morningGroup(day, groupId) {
+    var groups = day && day.morning && day.morning.groups;
+    if (!groups) return null;
+    for (var i = 0; i < groups.length; i++) {
+      if (groups[i].id === groupId) return groups[i];
+    }
+    return null;
+  }
+
+  function morningPick(day, groupId, methodId) {
+    var block = morningGroup(day, groupId);
+    if (!block) return null;
+    var picks = block.method_picks || {};
+    if (picks[methodId]) return picks[methodId];
+    if (methodId === "model") return block.pick || null;
+    return null;
+  }
+
+  function samePick(a, b) {
+    function nums(block) {
+      return ((block && block.pids) || []).map(Number).sort(function (x, y) { return x - y; });
+    }
+    var left = nums(a);
+    var right = nums(b);
+    if (left.length !== right.length || !left.length) return false;
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] !== right[i]) return false;
+    }
+    return true;
+  }
+
+  function morningDiffers(day) {
+    var methods = displayMethods(day);
+    var found = false;
+    (day.groups || []).forEach(function (group) {
+      methods.forEach(function (method) {
+        var earlier = morningPick(day, group.id, method.id);
+        if (earlier && earlier.name && !samePick(pickOf(group, method.id), earlier)) found = true;
+      });
+    });
+    return found;
+  }
+
+  function formatMoves(entries) {
+    return (entries || []).map(function (entry) {
+      var name = entry.name || ("#" + entry.pid);
+      if (entry.group == null) return name;
+      return name + " (group " + entry.group + ")";
+    }).join(", ");
+  }
+
+  function renderListChanges(day) {
+    var snaps = ((day && day.snapshots) || []).filter(function (snap) {
+      return (snap.added && snap.added.length) || (snap.removed && snap.removed.length);
+    });
+    if (!snaps.length) return null;
+    var items = snaps.map(function (snap) {
+      var bits = [torontoClock(snap.time) || snap.time || ""];
+      if (snap.added && snap.added.length) bits.push("Added: " + formatMoves(snap.added));
+      if (snap.removed && snap.removed.length) bits.push("Removed: " + formatMoves(snap.removed));
+      return h("li", {text: bits.filter(Boolean).join(" \u00b7 ")});
+    });
+    return h("section", {class: "card", id: "list-changes"},
+      h("h2", {text: "List changes"}),
+      h("p", {class: "muted small", text: "Tims changed who was available. Current picks use the latest list. Someone who left is still shown, grayed out, and is not a current pick."}),
+      h("ul", {class: "list-changes"}, items)
+    );
+  }
+
+  function renderMorningBanner(day) {
+    if (!morningDiffers(day)) return null;
+    var note = (day.morning && day.morning.note) || "Reference only. Season results use the current pick.";
+    return h("p", {class: "muted small morning-banner", text: "Morning picks stay listed for reference. " + note});
+  }
+
   function skippedNames(day) {
     var out = [];
     ((day && day.skipped) || []).forEach(function (entry) {
@@ -332,6 +436,7 @@
   function bestOf(players, method, kind) {
     var best = null;
     (players || []).forEach(function (p) {
+      if (p && p.available === false) return;
       var v = kind === "rank" ? rankOf(p, method) : pOf(p, method);
       if (v == null) return;
       if (best == null || (kind === "rank" ? v < best : v > best)) best = v;
@@ -340,6 +445,7 @@
   }
 
   function highlighted(player, players, method, mode, kind, group) {
+    if (player && player.available === false) return false;
     if (mode === "past") return isStoredPick(player, group, method);
     var best = bestOf(players, method, kind);
     var v = kind === "rank" ? rankOf(player, method) : pOf(player, method);
@@ -497,6 +603,13 @@
           );
         })));
       }
+      displayMethods(day).forEach(function (method) {
+        var earlier = morningPick(day, group.id, method.id);
+        if (!earlier || !earlier.name || samePick(pickOf(group, method.id), earlier)) return;
+        var text = "Morning pick \u00b7 " + method.label + ": " + earlier.name;
+        if (earlier.hit != null) text += " \u00b7 " + hitText(earlier.hit);
+        bits.push(h("p", {class: "pickline morning-pick", text: text}));
+      });
       wrap.appendChild(h("article", {class: "card"}, bits));
     });
     return wrap;
@@ -513,14 +626,17 @@
         on ? h("span", {class: "pill", text: "Pick"}) : null),
       h("span", {class: "pct", text: valueText})
     );
+    var gone = removedNote(player);
     var meta = h("div", {class: "meta"},
       matchup(player),
       player.position ? " \u00b7 " + player.position : "",
+      gone ? " \u00b7 " : "",
+      gone ? h("span", {class: "removed-note", text: gone}) : null,
       scoredText(player) ? " \u00b7 " : "",
       scoredText(player) ? h("span", {class: "scored", text: scoredText(player)}) : null
     );
     var stats = kindOf(selected) === "rank" ? styleLine(player) : "";
-    return h("div", {class: "player" + (on ? " pick" : "")},
+    return h("div", {class: "player" + (on ? " pick" : "") + (player.available === false ? " removed" : "")},
       row,
       meta,
       stats ? h("div", {class: "meta stats-line", text: stats}) : null,
@@ -532,20 +648,33 @@
     var grid = h("div", {class: "groups"});
     var selected = methodMeta(day);
     (day.groups || []).forEach(function (group) {
-      var players = ordered(group.players, selected.id, kindOf(selected));
+      var available = ordered((group.players || []).filter(isAvailable), selected.id, kindOf(selected));
+      var removed = (group.players || []).filter(function (player) { return player.available === false; });
       var hit = hitOf(group, selected.id);
       var head = h("div", {class: "ghead"},
         h("h3", {text: "Group " + group.id}),
-        h("span", {class: "pill " + hitClass(hit), text: mode === "today" && day.status === "pending" ? (group.players || []).length + " players" : hitText(hit)})
+        h("span", {class: "pill " + hitClass(hit), text: mode === "today" && day.status === "pending" ? available.length + " players" : hitText(hit)})
       );
       var cardKids = [head];
       var block = pickOf(group, selected.id);
       if (block && block.name) {
-        cardKids.push(h("p", {class: "pickline", text: "Pick: " + block.name + " \u00b7 " + formatBlock(block, selected)}));
+        cardKids.push(h("p", {class: "pickline", text: "Current pick: " + block.name + " \u00b7 " + formatBlock(block, selected)}));
       }
-      players.forEach(function (player) {
-        cardKids.push(renderPlayer(player, players, selected, mode, group));
+      var earlier = morningPick(day, group.id, selected.id);
+      if (earlier && earlier.name && !samePick(block, earlier)) {
+        var morningText = "Morning pick: " + earlier.name + " \u00b7 " + formatBlock(earlier, selected);
+        if (earlier.hit != null) morningText += " \u00b7 " + hitText(earlier.hit);
+        cardKids.push(h("p", {class: "pickline morning-pick", text: morningText}));
+      }
+      available.forEach(function (player) {
+        cardKids.push(renderPlayer(player, available, selected, mode, group));
       });
+      if (removed.length) {
+        cardKids.push(h("p", {class: "pickline", text: "No longer on the list"}));
+        removed.forEach(function (player) {
+          cardKids.push(renderPlayer(player, available, selected, mode, group));
+        });
+      }
       if (mode === "past") {
         var line = "Not final yet.";
         if (group.status === "graded") {
@@ -569,30 +698,39 @@
     var body = document.createElement("tbody");
     var selected = methodMeta(day);
     (day.groups || []).forEach(function (group) {
-      var players = ordered(group.players, selected.id, kindOf(selected));
+      var available = ordered((group.players || []).filter(isAvailable), selected.id, kindOf(selected));
+      var removed = (group.players || []).filter(function (player) { return player.available === false; });
+      var players = available.concat(removed);
       var best = {};
       methods.forEach(function (method) {
-        best[method.id] = bestOf(players, method.id, kindOf(method));
+        best[method.id] = bestOf(available, method.id, kindOf(method));
       });
       players.forEach(function (player) {
+        var gone = player.available === false;
+        var who = player.name;
+        if (gone) {
+          var when = torontoClock(player.removed_at);
+          who = player.name + (when ? " \u00b7 removed " + when : " \u00b7 removed");
+        }
         var cells = [
           h("td", {text: String(group.id)}),
-          h("td", {class: "player-name", text: player.name}),
+          h("td", {class: "player-name", text: who}),
           h("td", {text: player.team + (player.home ? " vs " : " @ ") + player.opp})
         ];
         methods.forEach(function (method) {
           var markValue = kindOf(method) === "rank" ? rankOf(player, method.id) : pOf(player, method.id);
-          var mark = markValue != null && markValue === best[method.id];
+          var mark = !gone && markValue != null && markValue === best[method.id];
           cells.push(h("td", {class: mark ? "ok" : "", text: formatMethodValue(player, method)}));
         });
         if (placeholder) cells.push(h("td", {class: "placeholder", text: "\u2014"}));
-        var tr = h("tr", {class: isStoredPick(player, group, "model") ? "pick" : ""}, cells);
+        var rowClass = gone ? "removed" : (isStoredPick(player, group, "model") ? "pick" : "");
+        var tr = h("tr", {class: rowClass}, cells);
         body.appendChild(tr);
       });
     });
     var note = placeholder
       ? "Side-by-side is ready for another method. It will add a column next to Model. Only Model is published today."
-      : "Each column is one method. A marked cell is that column's leader. A marked row is the model pick saved that morning.";
+      : "Each column is one method. A marked cell is that column's leader among players still on the list. A marked row is the current model pick.";
     return h("section", {class: "card", id: "compare"},
       h("h2", {text: "Compare methods"}),
       h("p", {class: "muted small compare-note", text: note}),
@@ -618,6 +756,10 @@
       h("p", {class: "muted", text: statusLine(day)})));
     var skippedToday = renderSkipped(day);
     if (skippedToday) view.appendChild(skippedToday);
+    var changesToday = renderListChanges(day);
+    if (changesToday) view.appendChild(changesToday);
+    var morningToday = renderMorningBanner(day);
+    if (morningToday) view.appendChild(morningToday);
     view.appendChild(renderSummary(day, "today"));
     view.appendChild(h("div", {style: "height:12px"}));
     view.appendChild(renderGroups(day, "today"));
@@ -695,7 +837,7 @@
     );
     view.appendChild(h("section", {class: "card"},
       h("h2", {text: "Past days"}),
-      h("p", {class: "muted small", text: "The pick is the one published that morning. Players who scored are marked."}),
+      h("p", {class: "muted small", text: "The result is the current pick, from the latest list. The morning pick is shown when it differs. Players who scored are marked."}),
       tools,
       renderDateList(dates)));
     var months = view.querySelector(".past-months");
@@ -711,6 +853,10 @@
       h("p", {class: "muted", text: statusLine(day)})));
     var skippedPast = renderSkipped(day);
     if (skippedPast) view.appendChild(skippedPast);
+    var changesPast = renderListChanges(day);
+    if (changesPast) view.appendChild(changesPast);
+    var morningPast = renderMorningBanner(day);
+    if (morningPast) view.appendChild(morningPast);
     view.appendChild(renderSummary(day, "past"));
     view.appendChild(h("div", {style: "height:12px"}));
     view.appendChild(renderGroups(day, "past"));
@@ -1022,7 +1168,7 @@
     view.appendChild(h("section", {class: "card"},
       h("div", {class: "dayhead"},
         h("h2", {text: (season.season || "Season") + " tracker"}),
-        h("p", {class: "muted", text: "Each method is graded on its own morning pick. The charts are year to date."})),
+        h("p", {class: "muted", text: "Each method is graded on its current pick. Days already graded keep that result. The charts are year to date."})),
       compare,
       h("div", {class: "stats"},
         h("div", {class: "stat"}, h("b", {text: pct(sum.hit_rate)}), h("span", {text: "Hit rate"})),

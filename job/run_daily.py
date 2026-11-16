@@ -12,6 +12,11 @@ Exit status is 0 on success and 1 on a refresh, groups, or publish error.
 today.json was not replaced with a new slate, and the caller should retry.
 A grade that is still pending is success: the slate is published either way.
 
+The first lists of the day are kept as the morning picks. A later check
+that adds or removes players stores a snapshot and replaces the current
+picks. Season totals use the current picks. A day already graded at the
+start of the run is not rewritten.
+
 The run refreshes NHL results and grades every unfinished published day
 before it asks Tims for today. Grading math is unchanged.
 """
@@ -41,6 +46,7 @@ from job.groups import FileGroupsSource, GroupsSourceError, TimsGroupsSource
 from job.publish import PublishError, list_days, load_day, publish_day
 from job.refresh import RefreshError, refresh
 from job.score import ScoreError, schedule_map, score_groups
+from job.snapshots import merge_lists, note_seen, open_slate, same_lists, stamp_toronto
 
 
 def today_toronto():
@@ -92,7 +98,11 @@ def parse_args(argv):
     parser.add_argument("--raw", help="NHL raw directory (default: model/raw)")
     parser.add_argument("--no-refresh", action="store_true", help="Do not fetch NHL feeds")
     parser.add_argument("--no-grade", action="store_true", help="Do not grade finished games")
-    parser.add_argument("--rescore", action="store_true", help="Score again even if this date is already graded")
+    parser.add_argument(
+        "--rescore",
+        action="store_true",
+        help="Score a still-pending slate again from the current lists. A graded day is left as published.",
+    )
     parser.add_argument(
         "--backfill-clones",
         action="store_true",
@@ -313,13 +323,26 @@ def run(argv=None, get_json=None, tims_source=None):
             added = refresh(when, raw_dir, get_json=getter, log=log)
             log("nhl refresh +%d games into %s" % (added, raw_dir))
 
+        # Status from before grading. A slate that becomes final in this
+        # run can still take a list change; a day that was already graded
+        # cannot.
+        prior = load_day(publish_dir, when.isoformat())
+        prior_status = prior.get("status") if prior else None
+        frozen = []
+        if prior:
+            for group in prior.get("groups") or []:
+                if group.get("status") == "graded":
+                    frozen.append(group.get("id"))
+
         if not args.no_grade:
             _grade_published(publish_dir, getter, log)
 
         try:
-            existing = load_day(publish_dir, when.isoformat())
-            rescore = existing is None or existing.get("status") == "pending" or args.rescore
-            if rescore:
+            if prior_status == "graded":
+                kept = load_day(publish_dir, when.isoformat()) or prior
+                log("keeping graded slate %s" % when.isoformat())
+                publish_day(publish_dir, kept, as_today=True)
+            else:
                 if args.groups:
                     source = FileGroupsSource(args.groups)
                 elif tims_source is not None:
@@ -334,17 +357,41 @@ def run(argv=None, get_json=None, tims_source=None):
                 if schedule_payload is None:
                     log("schedule feed unavailable; using home/away from the groups file")
                     schedule_payload = {}
-                day = score_groups(
+                scored = score_groups(
                     when,
                     groups,
                     schedule_map(schedule_payload),
                     clone_fetch=_clone_fetcher(getter, raw_dir),
                 )
+                observed = stamp_toronto()
+                existing = load_day(publish_dir, when.isoformat())
+                if existing is None:
+                    day = open_slate(scored, observed)
+                    log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))
+                elif same_lists(existing, scored) and not args.rescore:
+                    day = note_seen(existing, observed)
+                    log("lists unchanged %s" % when.isoformat())
+                else:
+                    day = merge_lists(
+                        existing,
+                        scored,
+                        observed,
+                        frozen_ids=frozen,
+                        force=bool(args.rescore),
+                    )
+                    added = 0
+                    removed = 0
+                    snaps = day.get("snapshots") or []
+                    if snaps and snaps[-1].get("time") == observed:
+                        added = len(snaps[-1].get("added") or [])
+                        removed = len(snaps[-1].get("removed") or [])
+                    if added or removed:
+                        log("lists changed %s: +%d -%d" % (when.isoformat(), added, removed))
+                    else:
+                        log("rescored pending %s" % when.isoformat())
+                if not args.no_grade:
+                    apply_grade(day, schedule_payload)
                 publish_day(publish_dir, day, as_today=True)
-                log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))
-            else:
-                log("keeping graded slate %s" % when.isoformat())
-                publish_day(publish_dir, existing, as_today=True)
         except GroupsSourceError as exc:
             # Today's lists were not written. Graded days already published stay.
             if _slate_not_ready(exc):
