@@ -355,30 +355,65 @@
     return found;
   }
 
-  function formatMoves(entries) {
-    return (entries || []).map(function (entry) {
-      var name = entry.name || ("#" + entry.pid);
-      if (entry.group == null) return name;
-      return name + " (group " + entry.group + ")";
-    }).join(", ");
+  function pickTint(id) {
+    var n = Number(id);
+    if (n === 1 || n === 2 || n === 3) return "g" + n;
+    return "";
+  }
+
+  function groupChangeLines(snapshots) {
+    var lines = [];
+    (snapshots || []).forEach(function (snap) {
+      [
+        ["Added", snap.added],
+        ["Removed", snap.removed],
+        ["Game started", snap.started]
+      ].forEach(function (pair) {
+        var buckets = {};
+        var order = [];
+        (pair[1] || []).forEach(function (entry) {
+          if (!entry) return;
+          var gid = entry.group == null ? "" : String(entry.group);
+          if (!buckets[gid]) {
+            buckets[gid] = [];
+            order.push(gid);
+          }
+          buckets[gid].push(entry.name || ("#" + entry.pid));
+        });
+        order.forEach(function (gid) {
+          lines.push({time: snap.time || "", kind: pair[0], group: gid, names: buckets[gid]});
+        });
+      });
+    });
+    return lines;
+  }
+
+  function changeLineText(line, when) {
+    var who = "Group " + (line.group || "?") + ": " + (line.names || []).join(", ");
+    var bits = [];
+    if (when) bits.push(when);
+    bits.push(line.kind);
+    bits.push(who);
+    return bits.join(" \u00b7 ");
   }
 
   function renderListChanges(day) {
-    var snaps = ((day && day.snapshots) || []).filter(function (snap) {
-      return (snap.added && snap.added.length) || (snap.removed && snap.removed.length) || (snap.started && snap.started.length);
+    var lines = groupChangeLines(day && day.snapshots);
+    if (!lines.length) return null;
+    var items = lines.map(function (line) {
+      var when = torontoClock(line.time) || "";
+      return h("li", {class: pickTint(line.group), text: changeLineText(line, when)});
     });
-    if (!snaps.length) return null;
-    var items = snaps.map(function (snap) {
-      var bits = [torontoClock(snap.time) || snap.time || ""];
-      if (snap.added && snap.added.length) bits.push("Added: " + formatMoves(snap.added));
-      if (snap.removed && snap.removed.length) bits.push("Removed: " + formatMoves(snap.removed));
-      if (snap.started && snap.started.length) bits.push("Game started: " + formatMoves(snap.started));
-      return h("li", {text: bits.filter(Boolean).join(" \u00b7 ")});
-    });
+    var list = h("ul", {class: "list-changes"}, items);
+    var body = lines.length > 6
+      ? h("details", {class: "list-changes-fold"},
+          h("summary", {text: "Show changes (" + lines.length + ")"}),
+          list)
+      : list;
     return h("section", {class: "card", id: "list-changes"},
       h("h2", {text: "List changes"}),
       h("p", {class: "muted small", text: "Anyone off the list is grayed out and cannot be picked. A scratch before the game says when Tims removed them. A game start says when that game began. The graded pick is the one whose game started while they were still the pick."}),
-      h("ul", {class: "list-changes"}, items)
+      body
     );
   }
 
@@ -1268,7 +1303,8 @@
         }
         cardKids.push(h("p", {class: "pickline", text: line}));
       }
-      grid.appendChild(h("article", {class: "card"}, cardKids));
+      var tint = mode === "past" ? pickTint(group.id) : "";
+      grid.appendChild(h("article", {class: "card" + (tint ? " " + tint : "")}, cardKids));
     });
     return grid;
   }
@@ -1310,7 +1346,7 @@
           cells.push(h("td", {class: mark ? "ok" : "", text: formatMethodValue(player, method)}));
         });
         if (placeholder) cells.push(h("td", {class: "placeholder", text: "\u2014"}));
-        var rowClass = gone ? "removed" : (isStoredPick(player, group, "model") ? "pick" : "");
+        var rowClass = [gone ? "removed" : (isStoredPick(player, group, "model") ? "pick" : ""), pickTint(group.id)].filter(Boolean).join(" ");
         var tr = h("tr", {class: rowClass}, cells);
         body.appendChild(tr);
       });
@@ -1971,11 +2007,19 @@
     return null;
   }
 
-  function metricText(row) {
+  function countText(value) {
+    if (value == null || isNaN(value)) return "\u2014";
+    var rounded = Math.round(Number(value) * 1000) / 1000;
+    return String(rounded);
+  }
+
+  function recordLine(row) {
     if (!row || !row.picks) return "\u2014";
-    var days = row.days_with_hit == null ? "\u2014" : String(row.days_with_hit);
+    var days = row.days == null ? "\u2014" : String(row.days);
+    var withHit = row.days_with_hit == null ? "\u2014" : String(row.days_with_hit);
     var streaks = row.streaks == null ? "\u2014" : String(row.streaks);
-    return pct(row.hit_rate) + " \u00b7 " + days + " days \u00b7 " + streaks + " streaks";
+    var rate = row.hit_rate == null ? "\u2014" : pct(row.hit_rate);
+    return days + " days \u00b7 " + countText(row.hits) + "/" + row.picks + " correct (" + rate + ") \u00b7 " + withHit + " with a hit \u00b7 " + streaks + " streaks";
   }
 
   function renderMetrics(view) {
@@ -2018,12 +2062,12 @@
       }));
     });
     var blocks = phases.map(function (pair) {
-      var stats = h("div", {class: "stats"});
+      var stats = h("div", {class: "records"});
       trackMethods(state.season || state.today || {}).forEach(function (method) {
         var row = metricsFor(method.id, pair[0]);
-        stats.appendChild(h("div", {class: "stat" + (method.id === selected.id && state.phaseFilter === pair[0] ? " on" : "")},
-          h("b", {text: row && row.picks ? pct(row.hit_rate) : "\u2014"}),
-          h("span", {text: method.label + " \u00b7 " + metricText(row)})
+        stats.appendChild(h("p", {class: "record-line" + (method.id === selected.id && state.phaseFilter === pair[0] ? " on" : "")},
+          h("b", {text: method.label}),
+          " " + recordLine(row)
         ));
       });
       return h("div", {class: "metric-block"}, h("h3", {text: pair[1]}), stats);
@@ -2093,16 +2137,14 @@
     var block = season.by_method && season.by_method[selected.id];
     var viewSeason = block || (selected.id === "model" || selected.id === season.method ? season : {summary: {}, days: []});
     var sum = viewSeason.summary || {};
-    var hits = sum.hits == null ? "\u2014" : (Math.round(sum.hits * 1000) / 1000);
     var compare = null;
     if (season.by_method && methodsOf(season).length > 1) {
-      compare = h("div", {class: "stats"}, methodsOf(season).map(function (method) {
+      compare = h("div", {class: "records"}, methodsOf(season).map(function (method) {
         var part = season.by_method[method.id] || {};
         var partSum = part.summary || {};
-        var partHits = partSum.hits == null ? "\u2014" : (Math.round(partSum.hits * 1000) / 1000);
-        return h("div", {class: "stat" + (method.id === selected.id ? " on" : "")},
-          h("b", {text: pct(partSum.hit_rate)}),
-          h("span", {text: method.label + " \u00b7 " + partHits + " / " + (partSum.picks || 0)})
+        return h("p", {class: "record-line" + (method.id === selected.id ? " on" : "")},
+          h("b", {text: method.label}),
+          " " + recordLine(partSum)
         );
       }));
     }
@@ -2111,9 +2153,8 @@
         h("h2", {text: (season.season || "Season") + " tracker"}),
         h("p", {class: "muted", text: "Each method is graded on its current pick. Days already graded keep that result. The charts are year to date."})),
       compare,
+      h("p", {class: "record-line"}, recordLine(sum)),
       h("div", {class: "stats"},
-        h("div", {class: "stat"}, h("b", {text: pct(sum.hit_rate)}), h("span", {text: "Hit rate"})),
-        h("div", {class: "stat"}, h("b", {text: hits + " / " + (sum.picks || 0)}), h("span", {text: "Picks hit"})),
         h("div", {class: "stat"}, h("b", {text: pct(sum.top3_rate)}), h("span", {text: "Top 3 scored"})),
         h("div", {class: "stat"}, h("b", {text: pct(sum.random_baseline)}), h("span", {text: "Random baseline"}))
       ),

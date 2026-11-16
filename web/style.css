@@ -89,8 +89,30 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .removed-note{color:var(--muted)}
 .morning-pick{margin-top:4px}
 .morning-banner{margin:4px 0 0}
-.list-changes{margin:8px 0 0;padding-left:18px}
-.list-changes li{margin:2px 0}
+.list-changes{margin:8px 0 0;padding-left:0;list-style:none}
+.list-changes li{margin:4px 0;padding:4px 8px 4px 10px;border-radius:6px;border-left:4px solid transparent}
+.list-changes-fold summary{cursor:pointer;color:var(--orange);font-weight:600}
+.g1{background:#e7f6ec;color:#10233f;border-left-color:#2f8f4e}
+.g2{background:#fff1e0;color:#10233f;border-left-color:#e67300}
+.g3{background:#e7f2fb;color:#10233f;border-left-color:#2f6fbf}
+.groups .card.g1,.groups .card.g2,.groups .card.g3{border-left-width:4px}
+.groups .card.g1 .player,.groups .card.g2 .player,.groups .card.g3 .player{background:transparent;color:inherit}
+.groups .card.g1 .name,.groups .card.g1 .pct,.groups .card.g2 .name,.groups .card.g2 .pct,.groups .card.g3 .name,.groups .card.g3 .pct{color:#10233f}
+.groups .card.g1 .meta,.groups .card.g2 .meta,.groups .card.g3 .meta,
+.groups .card.g1 .muted,.groups .card.g2 .muted,.groups .card.g3 .muted,
+.groups .card.g1 .removed-note,.groups .card.g2 .removed-note,.groups .card.g3 .removed-note{color:#3e5168}
+.groups .card.g1 .scored,.groups .card.g1 .ok,.groups .card.g2 .scored,.groups .card.g2 .ok,.groups .card.g3 .scored,.groups .card.g3 .ok{color:#0b6b32}
+.groups .card.g1 .player.pick{background:rgba(47,143,78,.16);box-shadow:inset 3px 0 0 #2f8f4e}
+.groups .card.g2 .player.pick{background:rgba(230,115,0,.16);box-shadow:inset 3px 0 0 #e67300}
+.groups .card.g3 .player.pick{background:rgba(47,111,191,.16);box-shadow:inset 3px 0 0 #2f6fbf}
+table.data tbody tr.g1 td{background:#e7f6ec;color:#10233f}
+table.data tbody tr.g2 td{background:#fff1e0;color:#10233f}
+table.data tbody tr.g3 td{background:#e7f2fb;color:#10233f}
+table.data tbody tr.g1 td.ok,table.data tbody tr.g2 td.ok,table.data tbody tr.g3 td.ok{color:#0b6b32;font-weight:700}
+table.data tbody tr.g1.removed td,table.data tbody tr.g2.removed td,table.data tbody tr.g3.removed td{color:#4a5c74}
+.record-line{margin:4px 0;font-size:14.5px;line-height:1.4}
+.record-line b{display:inline-block;min-width:16em;font-weight:700}
+.record-line.on b{color:var(--orange)}
 table.data tbody tr.removed td{color:var(--muted)}
 .player .row{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .player .name{font-weight:700}
