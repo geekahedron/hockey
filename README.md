@@ -36,7 +36,7 @@ reads JSON:
 | `data/seasons/<id>/` | One extra season, same shapes as `data/` except there is no `today.json`. `season.json` and `days/index.json` may include `backtest`, `scope`, and `notes`. The 2025-26 backtest is dropped in here at deploy time. The daily rsync does not write or delete it. |
 
 Views are Today, Past days, and Season. A season menu appears when `seasons.json` lists more than one season. The live season is the default. `?season=2025-26` opens the backtest. That season has no today card. Its note comes from `notes` on `season.json` and `days/index.json`. A long season collapses past days by month and scrolls the pick table. The method menu lists the three
-names above. The compare table on Today has a column per method. A
+names above. The compare table on Today has a column per method. A matchup that has `start` (the NHL `startTimeUTC`) also shows that time in Toronto, such as BOS vs TOR · 7:00 PM, on the current pick, the morning pick, each player row, and the compare table. Past days do the same when the day file has it. No start leaves the matchup without a clock. A
 probability method is a number on each player at `probability.<id>` (0 to
 1). The goals-per-game method is `rank.<id>` (1 is first) plus `style`. The
 page does not fetch anything else. The season charts read `season.json`.
