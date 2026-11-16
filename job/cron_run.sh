@@ -65,7 +65,21 @@ TIMS_ENV="${ROOT}/secrets/tims.env" \
 code=$?
 
 if [ "$code" -eq 0 ] || [ "$code" -eq 75 ]; then
-  if rsync -a --delete "${PUBLISH}/" "${WEB}/"; then
+  # seasons.json is the page's season list. Rewrite it on every publish so
+  # --delete cannot drop it. seasons/ is the backtest drop-in on the web
+  # host (data/seasons/<id>/). Exclude it so this rsync neither deletes nor
+  # overwrites that tree.
+  JOB_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+  REPO_DIR=$(dirname "$JOB_DIR")
+  if ! PYTHONPATH="${REPO_DIR}${PYTHONPATH:+:$PYTHONPATH}" \
+    "$PY" -c 'import sys
+from job.publish import write_seasons_manifest
+write_seasons_manifest(sys.argv[1])
+' "$PUBLISH"; then
+    log "exit ${code} seasons manifest failed"
+    exit 1
+  fi
+  if rsync -a --delete --exclude '/seasons/' "${PUBLISH}/" "${WEB}/"; then
     log "exit ${code} rsync"
   else
     log "exit ${code} rsync failed"

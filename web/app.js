@@ -1,5 +1,9 @@
 /* Public Tims Hockey Challenge page.
    Reads static JSON only (data/today.json, data/season.json, data/days/...).
+   data/seasons.json lists seasons. The page picks one by id and loads that
+   row's base path. A season id in the query is used only when it is in the
+   manifest. The base path never comes from the query. ?data= still names a
+   single folder ([A-Za-z0-9_-]) when the manifest is missing.
    A method is {id, label, kind} on the payload. kind "probability"
    reads player.probability[id] (0 to 1). kind "rank" reads
    player.rank[id] (1 is the top) and player.style for the public-stat
@@ -7,8 +11,12 @@
    There is no second source and nothing here submits a pick. */
 (function () {
   var params = new URLSearchParams(location.search);
-  var root = (params.get("data") || "data").replace(/[^a-zA-Z0-9_-]/g, "");
-  if (!root) root = "data";
+  var fallbackRoot = (params.get("data") || "data").replace(/[^a-zA-Z0-9_-]/g, "");
+  if (!fallbackRoot) fallbackRoot = "data";
+  var root = fallbackRoot;
+  var loadToken = 0;
+
+  var BACKTEST_NOTE = "Backtest: replayed on the 2025-26 regular season using each morning's lists. The logistic model here was trained on 2024-25 only. The scoring-rate estimate uses today's parameters. Graded on non-shootout NHL goals.";
 
   var state = {
     view: "today",
@@ -17,7 +25,10 @@
     season: null,
     index: null,
     past: null,
-    pastDate: null
+    pastDate: null,
+    seasons: null,
+    seasonId: null,
+    backtest: false
   };
 
   var views = ["today", "past", "season"];
@@ -62,6 +73,147 @@
       if (!res.ok) throw new Error("Missing " + name);
       return res.json();
     });
+  }
+
+  // Manifest bases are data/ or data/seasons/<id>/. Anything else is ignored.
+  function baseForSeason(row) {
+    var id = String(row && row.id || "");
+    if (!/^[0-9]{4}-[0-9]{2}$/.test(id)) return "";
+    var base = String(row.base || "").replace(/\/+$/, "");
+    if (base === "data") return "data";
+    if (base === "data/seasons/" + id) return base;
+    return "";
+  }
+
+  function seasonIdFromQuery() {
+    var raw = params.get("season") || "";
+    if (!/^[0-9]{4}-[0-9]{2}$/.test(raw)) return "";
+    return raw;
+  }
+
+  function seasonById(seasons, id) {
+    if (!id) return null;
+    for (var i = 0; i < seasons.length; i++) {
+      if (seasons[i].id === id) return seasons[i];
+    }
+    return null;
+  }
+
+  function defaultSeason(seasons) {
+    var i;
+    for (i = 0; i < seasons.length; i++) {
+      if (!seasons[i].backtest && seasons[i].base === "data") return seasons[i];
+    }
+    for (i = 0; i < seasons.length; i++) {
+      if (!seasons[i].backtest) return seasons[i];
+    }
+    return seasons[0];
+  }
+
+  function loadManifest() {
+    return fetch("data/seasons.json", {cache: "no-store"}).then(function (res) {
+      if (!res.ok) throw new Error("no manifest");
+      return res.json();
+    }).then(function (doc) {
+      var seasons = [];
+      (doc || []).forEach(function (row) {
+        if (!row) return;
+        var base = baseForSeason(row);
+        if (!base) return;
+        seasons.push({
+          id: String(row.id),
+          label: row.label ? String(row.label) : String(row.id),
+          base: base,
+          backtest: !!row.backtest
+        });
+      });
+      if (!seasons.length) throw new Error("empty manifest");
+      return seasons;
+    });
+  }
+
+  function writeSeasonQuery(id) {
+    var url = new URL(location.href);
+    if (id) url.searchParams.set("season", id);
+    else url.searchParams.delete("season");
+    var next = url.pathname + url.search + url.hash;
+    if (next !== location.pathname + location.search + location.hash) {
+      history.replaceState(null, "", next);
+    }
+  }
+
+  function noteTexts() {
+    var seen = {};
+    var out = [];
+    function add(doc) {
+      var notes = doc && doc.notes;
+      if (!notes || !notes.length) return;
+      notes.forEach(function (note) {
+        if (typeof note !== "string") return;
+        var text = note.replace(/^\s+|\s+$/g, "");
+        if (!text || seen[text]) return;
+        seen[text] = true;
+        out.push(text);
+      });
+    }
+    add(state.season);
+    add(state.index);
+    return out;
+  }
+
+  function renderSeasonNote() {
+    var note = document.getElementById("season-note");
+    if (!note) return;
+    clear(note);
+    if (!state.backtest) {
+      note.hidden = true;
+      return;
+    }
+    var notes = noteTexts();
+    if (!notes.length) notes = [BACKTEST_NOTE];
+    notes.forEach(function (text) {
+      note.appendChild(h("p", {text: text}));
+    });
+    note.hidden = false;
+  }
+
+  function updateChrome() {
+    var todayBtn = document.querySelector('[data-view="today"]');
+    if (todayBtn) todayBtn.hidden = !!state.backtest;
+    var label = document.getElementById("season-label");
+    if (label) label.hidden = !(state.seasons && state.seasons.length > 1);
+    renderSeasonNote();
+  }
+
+  function fillSeasonSelect() {
+    var sel = document.getElementById("season");
+    if (!sel) return;
+    clear(sel);
+    (state.seasons || []).forEach(function (season) {
+      var opt = document.createElement("option");
+      opt.value = season.id;
+      opt.textContent = season.label;
+      sel.appendChild(opt);
+    });
+    if (state.seasonId) sel.value = state.seasonId;
+  }
+
+  function skippedNames(day) {
+    var out = [];
+    ((day && day.skipped) || []).forEach(function (entry) {
+      var name = "";
+      if (typeof entry === "string") name = entry;
+      else if (entry && typeof entry === "object") name = entry.name || entry.fullName || "";
+      name = String(name || "").replace(/^\s+|\s+$/g, "");
+      if (name) out.push(name);
+    });
+    return out;
+  }
+
+  function renderSkipped(day) {
+    var names = skippedNames(day);
+    if (!names.length) return null;
+    return h("p", {class: "muted small skipped", text: "Skipped: " + names.join(", ")});
   }
 
   function pretty(iso) {
@@ -464,10 +616,66 @@
     view.appendChild(h("div", {class: "dayhead"},
       h("h2", {text: pretty(day.date)}),
       h("p", {class: "muted", text: statusLine(day)})));
+    var skippedToday = renderSkipped(day);
+    if (skippedToday) view.appendChild(skippedToday);
     view.appendChild(renderSummary(day, "today"));
     view.appendChild(h("div", {style: "height:12px"}));
     view.appendChild(renderGroups(day, "today"));
     view.appendChild(renderCompare(day));
+  }
+
+  function dateButton(row) {
+    var label = pretty(row.date);
+    if (row.picks) label += " \u00b7 " + row.hits + "/" + row.picks;
+    else label += " \u00b7 pending";
+    return h("button", {
+      type: "button",
+      class: "ghost" + (row.date === state.pastDate ? " on" : ""),
+      text: label,
+      onclick: function () { selectPast(row.date); }
+    });
+  }
+
+  function monthKey(iso) {
+    return String(iso || "").slice(0, 7);
+  }
+
+  function monthLabel(key) {
+    var p = String(key || "").split("-");
+    if (p.length < 2 || !p[0] || !p[1]) return key;
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, 1));
+    return d.toLocaleDateString("en-US", {month: "long", year: "numeric", timeZone: "UTC"});
+  }
+
+  function renderDateList(dates) {
+    if (dates.length <= 24) {
+      var flat = h("div", {class: "dates"});
+      dates.forEach(function (row) { flat.appendChild(dateButton(row)); });
+      return flat;
+    }
+    var groups = [];
+    var byMonth = {};
+    dates.forEach(function (row) {
+      var key = monthKey(row.date);
+      if (!byMonth[key]) {
+        byMonth[key] = [];
+        groups.push(key);
+      }
+      byMonth[key].push(row);
+    });
+    var selected = monthKey(state.pastDate) || groups[0];
+    var wrap = h("div", {class: "past-months"});
+    groups.forEach(function (key) {
+      var rows = byMonth[key];
+      var buttons = h("div", {class: "dates"});
+      rows.forEach(function (row) { buttons.appendChild(dateButton(row)); });
+      var noun = rows.length === 1 ? " day" : " days";
+      wrap.appendChild(h("details", {class: "month", open: key === selected},
+        h("summary", {text: monthLabel(key) + " \u00b7 " + rows.length + noun}),
+        buttons
+      ));
+    });
+    return wrap;
   }
 
   function renderPast() {
@@ -485,24 +693,14 @@
           return input;
         })())
     );
-    var list = h("div", {class: "dates"});
-    dates.forEach(function (row) {
-      var label = pretty(row.date);
-      if (row.picks) label += " \u00b7 " + row.hits + "/" + row.picks;
-      else label += " \u00b7 pending";
-      var btn = h("button", {
-        type: "button",
-        class: "ghost" + (row.date === state.pastDate ? " on" : ""),
-        text: label,
-        onclick: function () { selectPast(row.date); }
-      });
-      list.appendChild(btn);
-    });
     view.appendChild(h("section", {class: "card"},
       h("h2", {text: "Past days"}),
       h("p", {class: "muted small", text: "The pick is the one published that morning. Players who scored are marked."}),
       tools,
-      list));
+      renderDateList(dates)));
+    var months = view.querySelector(".past-months");
+    var openMonth = months && months.querySelector("details[open]");
+    if (months && openMonth) months.scrollTop = openMonth.offsetTop;
     if (!state.past) {
       view.appendChild(h("p", {class: "muted", text: dates.length ? "Pick a date." : "No days published yet."}));
       return;
@@ -511,6 +709,8 @@
     view.appendChild(h("div", {class: "dayhead"},
       h("h2", {text: pretty(day.date)}),
       h("p", {class: "muted", text: statusLine(day)})));
+    var skippedPast = renderSkipped(day);
+    if (skippedPast) view.appendChild(skippedPast);
     view.appendChild(renderSummary(day, "past"));
     view.appendChild(h("div", {style: "height:12px"}));
     view.appendChild(renderGroups(day, "past"));
@@ -648,15 +848,50 @@
       if (style.dash) attrs["stroke-dasharray"] = style.dash;
       svg.appendChild(el("path", attrs));
     });
+    var many = dates.length > 40;
     series.forEach(function (item) {
       var style = item.style;
+      if (many) {
+        var lastI = -1;
+        (item.values || []).forEach(function (value, i) {
+          if (typeof value === "number") lastI = i;
+        });
+        if (lastI >= 0) addMarker(style.marker, x(lastI), y(item.values[lastI]), style.color, style.markerSize);
+        return;
+      }
       (item.values || []).forEach(function (value, i) {
         if (typeof value !== "number") return;
         addMarker(style.marker, x(i), y(value), style.color, style.markerSize);
       });
     });
-    [0, Math.floor((dates.length - 1) / 2), dates.length - 1].forEach(function (i) {
-      if (dates.length > 1 && i === Math.floor((dates.length - 1) / 2) && dates.length < 3) return;
+    var labelIndexes = [];
+    if (many) {
+      var lastMonth = "";
+      dates.forEach(function (iso, i) {
+        var month = String(iso || "").slice(0, 7);
+        if (month && month !== lastMonth) {
+          labelIndexes.push(i);
+          lastMonth = month;
+        }
+      });
+      if (labelIndexes[labelIndexes.length - 1] !== dates.length - 1) labelIndexes.push(dates.length - 1);
+      var kept = [];
+      labelIndexes.forEach(function (i) {
+        if (!kept.length) {
+          kept.push(i);
+          return;
+        }
+        var prev = kept[kept.length - 1];
+        if (Math.abs(x(i) - x(prev)) < 56 && i !== dates.length - 1) return;
+        if (i === dates.length - 1 && kept.length > 1 && Math.abs(x(i) - x(prev)) < 56) kept.pop();
+        kept.push(i);
+      });
+      labelIndexes = kept;
+    } else {
+      labelIndexes = [0, Math.floor((dates.length - 1) / 2), dates.length - 1];
+    }
+    labelIndexes.forEach(function (i) {
+      if (!many && dates.length > 1 && i === Math.floor((dates.length - 1) / 2) && dates.length < 3) return;
       var label = el("text", {
         x: x(i), y: h - 8, fill: "#9fb0cc", "font-size": "11",
         "text-anchor": i === 0 ? "start" : i === dates.length - 1 ? "end" : "middle",
@@ -829,9 +1064,10 @@
         ));
       });
     });
+    var pickRows = body.children ? body.children.length : 0;
     view.appendChild(h("section", {class: "card"},
       h("h2", {text: "Every pick \u00b7 " + selected.label}),
-      h("div", {class: "tablewrap"},
+      h("div", {class: pickRows > 48 ? "tablewrap season-table" : "tablewrap"},
         h("table", {class: "data"},
           h("thead", null, h("tr", null,
             h("th", {text: "Date"}),
@@ -849,6 +1085,7 @@
 
   function show(view) {
     if (views.indexOf(view) === -1) view = "today";
+    if (state.backtest && view === "today") view = "season";
     state.view = view;
     if (location.hash !== "#" + view) {
       history.replaceState(null, "", "#" + view);
@@ -872,14 +1109,78 @@
 
   function selectPast(iso) {
     state.pastDate = iso;
+    var token = loadToken;
+    var base = root;
     load("days/" + iso + ".json").then(function (day) {
+      if (token !== loadToken || base !== root) return;
       state.past = day;
       if (state.view === "past") renderPast();
     }).catch(function () {
+      if (token !== loadToken || base !== root) return;
       state.past = null;
       setBanner("No published file for " + iso + ".");
       if (state.view === "past") renderPast();
     });
+  }
+
+  function applyLoaded(today, season, index) {
+    state.today = today;
+    state.season = season;
+    state.index = index;
+    if ((season && season.backtest) || (index && index.backtest)) {
+      state.backtest = true;
+      state.today = null;
+    }
+    fillMethodSelect();
+    updateChrome();
+    if (!state.today && !state.season && !state.index) {
+      setBanner("No published JSON in " + root + "/ yet.");
+    } else {
+      setBanner("");
+    }
+    var graded = ((state.index && state.index.days) || []).filter(function (row) {
+      return row.status === "graded" || row.status === "partial";
+    });
+    var first = graded[0] || ((state.index && state.index.days) || [])[0];
+    state.past = null;
+    state.pastDate = first ? first.date : null;
+    if (state.backtest && state.view === "today") state.view = "season";
+    show(state.view);
+    if (state.pastDate) selectPast(state.pastDate);
+  }
+
+  function loadBundle() {
+    var token = ++loadToken;
+    var backtest = state.backtest;
+    var jobs = [];
+    if (!backtest) jobs.push(load("today.json").catch(function () { return null; }));
+    jobs.push(load("season.json").catch(function () { return null; }));
+    jobs.push(load("days/index.json").catch(function () { return null; }));
+    return Promise.all(jobs).then(function (all) {
+      if (token !== loadToken) return;
+      if (backtest) applyLoaded(null, all[0], all[1]);
+      else applyLoaded(all[0], all[1], all[2]);
+    });
+  }
+
+  function selectSeason(id, fromUser) {
+    var chosen = state.seasons ? seasonById(state.seasons, id) : null;
+    if (!chosen && state.seasons) chosen = defaultSeason(state.seasons);
+    if (!chosen) {
+      state.seasons = null;
+      state.seasonId = null;
+      state.backtest = false;
+      root = fallbackRoot;
+      updateChrome();
+      return loadBundle();
+    }
+    state.seasonId = chosen.id;
+    state.backtest = !!chosen.backtest;
+    root = chosen.base;
+    if (fromUser) writeSeasonQuery(chosen.id);
+    fillSeasonSelect();
+    updateChrome();
+    return loadBundle();
   }
 
   function boot() {
@@ -894,29 +1195,31 @@
         show(state.view);
       }
     });
+    var seasonSelect = document.getElementById("season");
+    if (seasonSelect) {
+      seasonSelect.addEventListener("change", function (event) {
+        if (event.target.value && event.target.value !== state.seasonId) {
+          selectSeason(event.target.value, true);
+        }
+      });
+    }
     window.addEventListener("hashchange", function () {
       var next = (location.hash || "").replace("#", "");
       if (views.indexOf(next) !== -1 && next !== state.view) show(next);
     });
-    Promise.all([
-      load("today.json").catch(function () { return null; }),
-      load("season.json").catch(function () { return null; }),
-      load("days/index.json").catch(function () { return null; })
-    ]).then(function (all) {
-      state.today = all[0];
-      state.season = all[1];
-      state.index = all[2];
-      fillMethodSelect();
-      if (!state.today && !state.season) {
-        setBanner("No published JSON in " + root + "/ yet.");
-      }
-      var graded = ((state.index && state.index.days) || []).filter(function (row) {
-        return row.status === "graded" || row.status === "partial";
-      });
-      var first = graded[0] || ((state.index && state.index.days) || [])[0];
-      if (first) state.pastDate = first.date;
-      show(state.view);
-      if (state.pastDate) selectPast(state.pastDate);
+    loadManifest().then(function (seasons) {
+      state.seasons = seasons;
+      var requested = seasonById(seasons, seasonIdFromQuery());
+      if (params.get("season") && !requested) writeSeasonQuery("");
+      var chosen = requested || defaultSeason(seasons);
+      return selectSeason(chosen.id, false);
+    }).catch(function () {
+      state.seasons = null;
+      state.seasonId = null;
+      state.backtest = false;
+      root = fallbackRoot;
+      updateChrome();
+      return loadBundle();
     });
   }
 
