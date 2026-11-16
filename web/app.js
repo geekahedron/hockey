@@ -217,6 +217,47 @@
     return player.available === false || clock >= start;
   }
 
+  function torontoGameTime(iso) {
+    if (!iso) return "";
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return "";
+    try {
+      var text = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "America/Toronto"
+      }).format(date);
+      return String(text).replace(/[\u00a0\u202f]/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+    } catch (err) {
+      return "";
+    }
+  }
+
+  function startIso(source, group) {
+    if (!source) return "";
+    if (source.start || source.startTimeUTC) return source.start || source.startTimeUTC;
+    var pid = source.pid != null ? source.pid : (source.pids && source.pids.length ? source.pids[0] : null);
+    if (pid == null || !group || !group.players) return "";
+    var i;
+    for (i = 0; i < group.players.length; i++) {
+      var player = group.players[i];
+      if (player.pid === pid && (player.start || player.startTimeUTC)) {
+        return player.start || player.startTimeUTC;
+      }
+    }
+    return "";
+  }
+
+  function teamsAndTime(source, group) {
+    if (!source || !source.team || !source.opp) return "";
+    var where = source.home ? "vs" : "@";
+    var line = source.team + " " + where + " " + source.opp;
+    var time = torontoGameTime(startIso(source, group));
+    if (time) line += " \u00b7 " + time;
+    return line;
+  }
+
   function torontoClock(iso) {
     if (!iso) return "";
     var date = new Date(iso);
@@ -540,9 +581,10 @@
   }
 
   function matchup(player) {
-    var where = player.home ? "vs" : "@";
+    var line = teamsAndTime(player);
+    if (!line) return "";
     var tag = player.home ? "Home" : "Away";
-    return player.team + " " + where + " " + player.opp + " \u00b7 " + tag;
+    return line + " \u00b7 " + tag;
   }
 
   function hitText(hit) {
@@ -626,14 +668,17 @@
       ];
       if (!multi) {
         bits.push(h("div", {class: "who", text: pick.name || "No pick"}));
-        bits.push(h("div", {class: "muted small", text: pick.team ? (pick.team + (pick.home ? " vs " : " @ ") + pick.opp) : ""}));
+        bits.push(h("div", {class: "muted small", text: teamsAndTime(pick, group)}));
         bits.push(h("div", {class: "pct", text: pct(pick.probability)}));
       } else {
         bits.push(h("div", {class: "leaders"}, methods.map(function (method) {
           var block = pickOf(group, method.id);
+          var who = block && block.name ? block.name : "\u2014";
+          var game = teamsAndTime(block, group);
+          if (block && block.name && game) who += " \u00b7 " + game;
           return h("div", {class: method.id === selected.id ? "on" : ""},
             h("span", {class: "lab", text: method.label}),
-            h("span", {class: "who", text: block && block.name ? block.name : "\u2014"}),
+            h("span", {class: "who", text: who}),
             h("span", {class: "pct", text: formatBlock(block, method)})
           );
         })));
@@ -642,6 +687,8 @@
         var earlier = morningPick(day, group.id, method.id);
         if (!earlier || !earlier.name || samePick(pickOf(group, method.id), earlier)) return;
         var text = "Morning pick \u00b7 " + method.label + ": " + earlier.name;
+        var morningGame = teamsAndTime(earlier, group);
+        if (morningGame) text += " \u00b7 " + morningGame;
         if (earlier.hit != null) text += " \u00b7 " + hitText(earlier.hit);
         bits.push(h("p", {class: "pickline morning-pick", text: text}));
       });
@@ -695,11 +742,13 @@
       var cardKids = [head];
       var block = pickOf(group, selected.id);
       if (block && block.name) {
-        cardKids.push(h("p", {class: "pickline", text: "Current pick: " + block.name + " \u00b7 " + formatBlock(block, selected)}));
+        var currentGame = teamsAndTime(block, group);
+        cardKids.push(h("p", {class: "pickline", text: "Current pick: " + block.name + (currentGame ? " \u00b7 " + currentGame : "") + " \u00b7 " + formatBlock(block, selected)}));
       }
       var earlier = morningPick(day, group.id, selected.id);
       if (earlier && earlier.name && !samePick(block, earlier)) {
-        var morningText = "Morning pick: " + earlier.name + " \u00b7 " + formatBlock(earlier, selected);
+        var morningGameLine = teamsAndTime(earlier, group);
+        var morningText = "Morning pick: " + earlier.name + (morningGameLine ? " \u00b7 " + morningGameLine : "") + " \u00b7 " + formatBlock(earlier, selected);
         if (earlier.hit != null) morningText += " \u00b7 " + hitText(earlier.hit);
         cardKids.push(h("p", {class: "pickline morning-pick", text: morningText}));
       }
@@ -755,7 +804,7 @@
         var cells = [
           h("td", {text: String(group.id)}),
           h("td", {class: "player-name", text: who}),
-          h("td", {text: player.team + (player.home ? " vs " : " @ ") + player.opp})
+          h("td", {text: teamsAndTime(player)})
         ];
         methods.forEach(function (method) {
           var markValue = kindOf(method) === "rank" ? rankOf(player, method.id) : pOf(player, method.id);

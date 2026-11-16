@@ -471,6 +471,8 @@ def test_page_shows_removed_players_and_morning_picks():
     style = open(os.path.join(ROOT, "web", "style.css")).read()
     assert "Removed from the Tims list at " in script
     assert "Game started" in script
+    assert "torontoGameTime" in script
+    assert "teamsAndTime" in script
     assert "List changes" in script
     assert "Morning pick" in script
     assert "Current pick" in script
