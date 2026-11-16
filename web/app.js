@@ -280,18 +280,19 @@
 
   function renderListChanges(day) {
     var snaps = ((day && day.snapshots) || []).filter(function (snap) {
-      return (snap.added && snap.added.length) || (snap.removed && snap.removed.length);
+      return (snap.added && snap.added.length) || (snap.removed && snap.removed.length) || (snap.started && snap.started.length);
     });
     if (!snaps.length) return null;
     var items = snaps.map(function (snap) {
       var bits = [torontoClock(snap.time) || snap.time || ""];
       if (snap.added && snap.added.length) bits.push("Added: " + formatMoves(snap.added));
       if (snap.removed && snap.removed.length) bits.push("Removed: " + formatMoves(snap.removed));
+      if (snap.started && snap.started.length) bits.push("Game started: " + formatMoves(snap.started));
       return h("li", {text: bits.filter(Boolean).join(" \u00b7 ")});
     });
     return h("section", {class: "card", id: "list-changes"},
       h("h2", {text: "List changes"}),
-      h("p", {class: "muted small", text: "Tims changed who was available. Current picks use the latest list. Someone who left is still shown, grayed out, and is not a current pick."}),
+      h("p", {class: "muted small", text: "Tims changed who was available. Someone who left before their game is grayed out and is not a current pick. Someone who drops off after the game starts stays eligible."}),
       h("ul", {class: "list-changes"}, items)
     );
   }
@@ -623,7 +624,9 @@
       h("span", {class: "name"},
         player.name,
         on ? " " : null,
-        on ? h("span", {class: "pill", text: "Pick"}) : null),
+        on ? h("span", {class: "pill", text: "Pick"}) : null,
+        player.game_started && player.available !== false ? " " : null,
+        player.game_started && player.available !== false ? h("span", {class: "pill started", text: "Game started"}) : null),
       h("span", {class: "pct", text: valueText})
     );
     var gone = removedNote(player);
@@ -711,6 +714,8 @@
         if (gone) {
           var when = torontoClock(player.removed_at);
           who = player.name + (when ? " \u00b7 removed " + when : " \u00b7 removed");
+        } else if (player.game_started) {
+          who = player.name + " \u00b7 game started";
         }
         var cells = [
           h("td", {text: String(group.id)}),

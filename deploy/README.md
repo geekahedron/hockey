@@ -91,12 +91,17 @@ Two kinds of firing run the job:
 
 The first lists of the day are the morning picks. When a later check adds
 or removes players, the day file gains a `snapshots` entry (`time`, `added`,
-`removed`) and `lists` is the current set. Everyone who was available at
-any check stays on the group: `first_seen`, `last_seen`, and, if they left,
-`available: false` and `removed_at`. Current picks are scored again from
-whoever is still available. Season totals use those current picks. Morning
-picks are graded only as a labeled reference. A day that was already graded
-before the run is not rewritten.
+`removed`, `started`) and `lists` is who is still eligible. Everyone who
+was available at any check stays on the group: `first_seen`, `last_seen`,
+and, if they left before their game, `available: false` and `removed_at`.
+A player who disappears at or after their team's start on the NHL score
+feed (`startTimeUTC` for that date) is `started`, not `removed`: they stay
+eligible, keep their probabilities, and the pick does not change. The same
+is true when the score feed already shows the game under way. A postponed
+game (`gameScheduleState` `PPD`) has not started, so a drop then is a
+removal and the group is scored again. Season totals use those current
+picks. Morning picks are graded only as a labeled reference. A day that
+was already graded before the run is not rewritten.
 
 Exit 0 or 75 rsyncs `publish/` to `public_html/tools/hockey/data/`. A hard
 error (exit 1) does not. `flock` keeps two runs from overlapping. Each

@@ -304,10 +304,125 @@ def test_already_graded_group_is_not_rewritten():
     assert changed["morning"]["groups"][0]["hit"] == 1
 
 
+def _evening_board(postponed=False):
+    """EDM starts 19:00 Toronto. TOR starts 22:00. Optional postponed EDM game."""
+    early = {
+        "gameType": 2,
+        "gameState": "FUT",
+        "gameScheduleState": "PPD" if postponed else "OK",
+        "startTimeUTC": "2026-11-17T00:00:00Z",
+        "homeTeam": {"abbrev": "EDM"},
+        "awayTeam": {"abbrev": "SJS"},
+    }
+    late = {
+        "gameType": 2,
+        "gameState": "FUT",
+        "gameScheduleState": "OK",
+        "startTimeUTC": "2026-11-17T03:00:00Z",
+        "homeTeam": {"abbrev": "TOR"},
+        "awayTeam": {"abbrev": "CBJ"},
+    }
+    return {"games": [early, late]}
+
+
+def test_game_start_drop_keeps_the_pick_and_the_grade():
+    # 21:00 Toronto is after the 19:00 EDM start and before the 22:00 TOR start.
+    at_nine = "2026-11-16T21:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])])
+    early = _by_pid(day["groups"][0])[1]
+    kept_prob = early["probability"]["model"]
+    assert day["groups"][0]["pick"]["pids"] == [1]
+    fresh = _shell([_group(1, [_player(2, "Late", 0.9, team="TOR", opp="CBJ")])], at_nine)
+    merged = merge_lists(day, fresh, at_nine, schedule=_evening_board())
+    group = merged["groups"][0]
+    locked = _by_pid(group)[1]
+    assert group["pick"]["pids"] == [1]
+    assert locked["available"] is True
+    assert locked["game_started"] is True
+    assert locked["probability"]["model"] == kept_prob
+    assert locked["pick"] is True
+    assert "removed_at" not in locked
+    assert merged["snapshots"][-1]["removed"] == []
+    assert merged["snapshots"][-1]["added"] == []
+    assert merged["snapshots"][-1]["started"] == [{"group": 1, "pid": 1, "name": "Early"}]
+    assert [row["pid"] for row in merged["lists"]["groups"][0]["players"]] == [1, 2]
+    apply_grade(merged, {"games": [
+        {"gameType": 2, "gameState": "OFF", "homeTeam": {"abbrev": "EDM"}, "awayTeam": {"abbrev": "SJS"},
+         "goals": [{"playerId": 1, "periodDescriptor": {"periodType": "REG"}}]},
+        {"gameType": 2, "gameState": "OFF", "homeTeam": {"abbrev": "TOR"}, "awayTeam": {"abbrev": "CBJ"},
+         "goals": []},
+    ]})
+    assert merged["groups"][0]["hit"] == 1
+    assert merged["groups"][0]["pick"]["pids"] == [1]
+    assert merged["groups"][0]["n"] == 2
+    later = "2026-11-16T21:30:00-05:00"
+    again = merge_lists(
+        merged,
+        _shell([_group(1, [_player(2, "Late", 0.9, team="TOR", opp="CBJ")])], later),
+        later,
+        schedule=_evening_board(),
+    )
+    assert again["groups"][0]["pick"]["pids"] == [1]
+    assert len(again["snapshots"]) == 1
+
+
+def test_pre_game_removal_changes_the_pick():
+    # 18:00 Toronto is before the 19:00 EDM start.
+    before = "2026-11-16T18:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])])
+    fresh = _shell([_group(1, [_player(2, "Late", 0.2, team="TOR", opp="CBJ")])], before)
+    merged = merge_lists(day, fresh, before, schedule=_evening_board())
+    group = merged["groups"][0]
+    gone = _by_pid(group)[1]
+    assert gone["available"] is False
+    assert gone.get("game_started") is not True
+    assert gone["removed_at"] == before
+    assert gone["pick"] is False
+    assert group["pick"]["pids"] == [2]
+    assert merged["snapshots"][-1]["removed"] == [{"group": 1, "pid": 1, "name": "Early"}]
+    assert merged["snapshots"][-1]["started"] == []
+    assert 1 not in [row["pid"] for row in merged["lists"]["groups"][0]["players"]]
+
+
+def test_disappearance_at_start_time_is_a_game_start_not_a_removal():
+    at_start = "2026-11-16T19:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])])
+    fresh = _shell([_group(1, [_player(2, "Late", 0.2, team="TOR", opp="CBJ")])], at_start)
+    merged = merge_lists(day, fresh, at_start, schedule=_evening_board())
+    assert merged["groups"][0]["pick"]["pids"] == [1]
+    assert merged["snapshots"][-1]["started"][0]["pid"] == 1
+    assert merged["snapshots"][-1]["removed"] == []
+
+
+def test_postponed_game_drop_is_a_removal():
+    at_nine = "2026-11-16T21:00:00-05:00"
+    day = _opened([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])])
+    fresh = _shell([_group(1, [_player(2, "Late", 0.2, team="TOR", opp="CBJ")])], at_nine)
+    merged = merge_lists(day, fresh, at_nine, schedule=_evening_board(postponed=True))
+    gone = _by_pid(merged["groups"][0])[1]
+    assert gone["available"] is False
+    assert merged["groups"][0]["pick"]["pids"] == [2]
+    assert merged["snapshots"][-1]["removed"][0]["name"] == "Early"
+    assert merged["snapshots"][-1]["started"] == []
+
+
 def test_page_shows_removed_players_and_morning_picks():
     script = open(os.path.join(ROOT, "web", "app.js")).read()
     style = open(os.path.join(ROOT, "web", "style.css")).read()
     assert "Removed from the Tims list at " in script
+    assert "Game started" in script
     assert "List changes" in script
     assert "Morning pick" in script
     assert "Current pick" in script
@@ -426,6 +541,26 @@ def test_run_grades_the_latest_list_and_leaves_a_graded_day_alone(tmp_path, monk
             drop = drop[:1]
 
         _groups(groups, drop=tuple(drop))
+        # The game has not started, so dropping the morning pick is a real removal.
+        code = run([
+            "--date", "2026-11-14",
+            "--groups", groups,
+            "--publish", publish,
+            "--raw", raw,
+            "--no-refresh",
+        ], get_json=_feed(final=False))
+        assert code == 0
+        removed = json.load(open(os.path.join(publish, "days", "2026-11-14.json")))
+        assert removed["status"] == "pending"
+        assert removed["groups"][0]["hit"] is None
+        for pid in drop:
+            assert pid not in removed["groups"][0]["pick"]["pids"]
+            gone = [row for row in removed["groups"][0]["players"] if row["pid"] == pid][0]
+            assert gone["available"] is False
+            assert gone.get("game_started") is not True
+        assert {row["pid"] for row in removed["snapshots"][0]["removed"]} == set(drop)
+        assert removed["snapshots"][0]["started"] == []
+
         code = run([
             "--date", "2026-11-14",
             "--groups", groups,

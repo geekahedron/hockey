@@ -2,9 +2,12 @@
 
 The first scored lists of a day are the morning picks. Later checks compare
 the available players. When that set changes, the day stores a snapshot
-``{time, added, removed}`` and the current lists, and the new score replaces
-the current picks. Players who drop off stay on the group, marked unavailable,
-with the first and last time they were on a list.
+``{time, added, removed, started}`` and the current lists. A player who
+leaves the Tims list before their team's NHL start is removed: ineligible,
+and the group is scored again. A player who disappears at or after that
+start stays eligible, keeps the probabilities they already had, and does
+not change the pick. A postponed game has not started, so a drop there is
+a removal.
 
 Grading of the published result uses the current picks. Morning picks are
 graded only into ``day["morning"]``, which the season totals do not read.
@@ -69,30 +72,122 @@ def _entry(group_id, player):
     }
 
 
-def diff_rosters(previous, current):
-    """Players added or removed since ``previous``, by group and player id."""
-    old = {}
-    new = {}
-    for day, dest in ((previous, old), (current, new)):
-        for group in (day or {}).get("groups") or []:
-            gid = group.get("id")
-            bucket = {}
-            for player in group.get("players") or []:
-                if _available(player):
-                    bucket[_pid(player)] = player
-            dest[gid] = bucket
+def _as_dt(value):
+    if isinstance(value, dt.datetime):
+        parsed = value
+    else:
+        text = str(value or "").strip().replace("Z", "+00:00")
+        if not text:
+            return None
+        try:
+            parsed = dt.datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed
+
+
+# Tims drops a player when the puck drops. A postponed game has not started,
+# even if the original start time is already in the past.
+_POSTPONED = {"PPD", "POSTPONED", "CNCL", "CANCELLED", "CANCELED", "SUSP", "SUSPENDED"}
+_UNDER_WAY = {"LIVE", "CRIT", "OVER", "FINAL", "OFF"}
+
+
+def game_board(payload):
+    """Map team abbrev to start time, schedule state, and game state.
+
+    ``payload`` is an NHL ``/v1/score/DATE`` document, the same one the
+    runner already fetched for home/away and grading.
+    """
+    board = {}
+    if not isinstance(payload, dict):
+        return board
+    for game in payload.get("games") or []:
+        if game.get("gameType") not in (None, 2, "2"):
+            continue
+        state = str(game.get("gameState") or "").upper()
+        schedule = str(game.get("gameScheduleState") or "").upper()
+        info = {
+            "start": _as_dt(game.get("startTimeUTC") or game.get("startTime")),
+            "postponed": schedule in _POSTPONED or state in _POSTPONED,
+            "state": state,
+        }
+        for side in ("homeTeam", "awayTeam"):
+            abbrev = (game.get(side) or {}).get("abbrev")
+            if abbrev:
+                board[abbrev] = info
+    return board
+
+
+def game_has_started(team, when, board):
+    """True when ``team``'s game is under way, or the clock is at or past the start.
+
+    A missing game, a postponed game, or a start still in the future is not
+    started. A disappearance then counts as a removal.
+    """
+    info = (board or {}).get(team)
+    if not info or info.get("postponed"):
+        return False
+    if info.get("state") in _UNDER_WAY:
+        return True
+    start = info.get("start")
+    moment = _as_dt(when)
+    if start is None or moment is None:
+        return False
+    return moment >= start
+
+
+def _buckets(day):
+    found = {}
+    for group in (day or {}).get("groups") or []:
+        bucket = {}
+        for player in group.get("players") or []:
+            if _available(player):
+                bucket[_pid(player)] = player
+        found[group.get("id")] = bucket
+    return found
+
+
+def _by_sort(items):
+    items.sort(key=lambda item: (item["group"] is None, str(item["group"]), item["name"], item["pid"]))
+    return items
+
+
+def classify_changes(previous, current, when, board):
+    """Split a Tims diff into adds, real removals, and game-start drops.
+
+    A player who was already marked ``game_started`` is not listed again.
+    """
+    old = _buckets(previous)
+    new = _buckets(current)
     added = []
     removed = []
-    keys = set(old) | set(new)
+    started = []
+    keys = set(list(old) + list(new))
     for gid in sorted(keys, key=lambda value: (value is None, value)):
-        old_ids = set((old.get(gid) or {}))
-        new_ids = set((new.get(gid) or {}))
+        old_ids = set(old.get(gid) or {})
+        new_ids = set(new.get(gid) or {})
         for pid in sorted(new_ids - old_ids):
             added.append(_entry(gid, new[gid][pid]))
         for pid in sorted(old_ids - new_ids):
-            removed.append(_entry(gid, old[gid][pid]))
-    added.sort(key=lambda item: (item["group"] is None, str(item["group"]), item["name"], item["pid"]))
-    removed.sort(key=lambda item: (item["group"] is None, str(item["group"]), item["name"], item["pid"]))
+            player = old[gid][pid]
+            if player.get("game_started"):
+                continue
+            if game_has_started(player.get("team"), when, board):
+                started.append(_entry(gid, player))
+            else:
+                removed.append(_entry(gid, player))
+    return _by_sort(added), _by_sort(removed), _by_sort(started)
+
+
+def diff_rosters(previous, current, when=None, board=None):
+    """Players added or removed since ``previous``, by group and player id.
+
+    Game-start drops are not removals. Pass ``when`` and ``board`` to tell
+    those apart; without them every disappearance is a removal.
+    """
+    added, removed, _started = classify_changes(previous, current, when, board or {})
     return added, removed
 
 
@@ -176,15 +271,6 @@ def _touch_players(group, when):
     return group
 
 
-def _pids(group):
-    found = []
-    for player in (group or {}).get("players") or []:
-        if _available(player):
-            found.append(_pid(player))
-    found.sort()
-    return found
-
-
 def open_slate(day, when):
     """First publish: these lists are both the morning picks and the current ones."""
     day["generated_at"] = when
@@ -213,32 +299,108 @@ def note_seen(existing, when):
     return day
 
 
-def _drop_group(previous, when):
-    group = copy.deepcopy(previous)
+def _model_prob(player):
+    value = (player.get("probability") or {}).get("model")
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _retie(players):
+    """Set the model pick from players still eligible. Returns the pick block."""
+    eligible = [player for player in players if _available(player)]
+    for player in players:
+        if not _available(player):
+            player["pick"] = False
+    ranked = [player for player in eligible if _model_prob(player) is not None]
+    if not ranked:
+        return None
+    ranked.sort(key=lambda player: (-_model_prob(player), player.get("name") or "", _pid(player)))
+    best = _model_prob(ranked[0])
+    tied = [player for player in ranked if _model_prob(player) == best]
+    tied_ids = set(_pid(player) for player in tied)
+    for player in eligible:
+        player["pick"] = _pid(player) in tied_ids
+    eligible.sort(key=lambda player: (
+        _model_prob(player) is None,
+        -(_model_prob(player) if _model_prob(player) is not None else 0),
+        player.get("name") or "",
+        _pid(player),
+    ))
+    players[:] = eligible + [player for player in players if not _available(player)]
+    return {
+        "pids": [_pid(player) for player in tied],
+        "name": " / ".join(player.get("name") or "" for player in tied),
+        "team": tied[0].get("team"),
+        "opp": tied[0].get("opp"),
+        "home": tied[0].get("home"),
+        "probability": best,
+    }
+
+
+def _rerank_goals(players):
+    """Re-rank eligible players by the goals-per-game already stored on them.
+
+    Skipped unless every eligible player has that figure, so a partial set
+    cannot invent a new order.
+    """
+    eligible = [player for player in players if _available(player)]
+    for player in eligible:
+        value = (player.get("style") or {}).get("goals_per_game")
+        if not isinstance(value, (int, float)):
+            return
+    eligible.sort(key=lambda player: (
+        -player["style"]["goals_per_game"], _pid(player)
+    ))
+    for place, player in enumerate(eligible, 1):
+        player.setdefault("rank", {})
+        player["rank"]["hch_style"] = place
+
+
+def _lock_player(player, when):
+    player["available"] = True
+    player["game_started"] = True
+    if not player.get("game_started_at"):
+        player["game_started_at"] = when
+    if "removed_at" in player:
+        del player["removed_at"]
+
+
+def _touch_listed(group, fresh_ids, when):
     for player in group.get("players") or []:
-        if _available(player):
-            player["available"] = False
-            player["removed_at"] = when
-        player["pick"] = False
-    group["status"] = "pending"
-    group["pick"] = None
-    group["method_picks"] = {}
-    group["hit"] = None
-    group["top3_hits"] = None
-    group["random"] = None
-    group["n"] = None
-    group["scorers"] = None
+        if not _available(player) or _pid(player) not in fresh_ids:
+            continue
+        if not player.get("first_seen"):
+            player["first_seen"] = when
+        player["last_seen"] = when
+        if player.get("game_started"):
+            player["game_started"] = False
+            if "game_started_at" in player:
+                del player["game_started_at"]
     return group
 
 
-def _rebuild_group(previous, fresh, when):
+def _mark_started(group, started_ids, when):
+    for player in group.get("players") or []:
+        if _pid(player) not in started_ids:
+            continue
+        _lock_player(player, when)
+    return group
+
+
+def _rebuild_group(previous, fresh, when, board):
+    """New Tims list, plus locked game-start players, minus real scratches.
+
+    The pick is computed again from whoever is still eligible. Game-start
+    players keep the probabilities stored on the previous row.
+    """
     history = {}
     if previous:
         for player in previous.get("players") or []:
             history[_pid(player)] = player
     players = []
     seen = set()
-    for player in fresh.get("players") or []:
+    for player in (fresh or {}).get("players") or []:
         pid = _pid(player)
         if pid in seen:
             continue
@@ -246,10 +408,13 @@ def _rebuild_group(previous, fresh, when):
         row = copy.deepcopy(player)
         prior = history.get(pid)
         row["available"] = True
+        row["game_started"] = False
         row["first_seen"] = (prior or {}).get("first_seen") or when
         row["last_seen"] = when
         if "removed_at" in row:
             del row["removed_at"]
+        if "game_started_at" in row:
+            del row["game_started_at"]
         players.append(row)
     if previous:
         for player in previous.get("players") or []:
@@ -258,35 +423,49 @@ def _rebuild_group(previous, fresh, when):
                 continue
             seen.add(pid)
             row = copy.deepcopy(player)
-            if _available(row):
-                row["available"] = False
-                row["removed_at"] = when
+            if not _available(player):
+                row["pick"] = False
+                players.append(row)
+                continue
+            if player.get("game_started") or game_has_started(player.get("team"), when, board):
+                _lock_player(row, when)
+                players.append(row)
+                continue
+            row["available"] = False
+            row["removed_at"] = when
             row["pick"] = False
+            row["game_started"] = False
             players.append(row)
-    return {
-        "id": fresh.get("id"),
+    group = {
+        "id": (fresh or previous or {}).get("id"),
         "status": "pending",
         "players": players,
-        "pick": copy.deepcopy(fresh.get("pick")),
+        "pick": None,
         "hit": None,
         "top3_hits": None,
         "random": None,
         "n": None,
         "scorers": None,
-        "method_picks": copy.deepcopy(fresh.get("method_picks") or {}),
+        "method_picks": {},
     }
+    group["pick"] = _retie(group["players"])
+    _rerank_goals(group["players"])
+    from job.clone_attach import set_method_picks
+    set_method_picks(group)
+    return group
 
 
-def merge_lists(existing, scored, when, frozen_ids=None, force=False):
+def merge_lists(existing, scored, when, frozen_ids=None, force=False, schedule=None):
     """Apply ``scored`` onto ``existing``.
 
     Groups in ``frozen_ids`` were already graded before this run and stay
-    as stored. Other groups keep their players when the available ids match,
-    unless ``force`` is set. A membership change appends one snapshot and
-    rescores that group from ``scored`` (current picks only).
+    as stored. A game-start drop does not change picks. A real add or
+    removal does, and the new pick still includes players whose games have
+    started. ``schedule`` is the NHL score document for this date.
     """
     frozen_ids = set(frozen_ids or [])
-    added, removed = diff_rosters(existing, scored)
+    board = game_board(schedule)
+    added, removed, started = classify_changes(existing, scored, when, board)
     day = copy.deepcopy(existing)
     if not isinstance(day.get("morning"), dict):
         day["morning"] = morning_from(day, day.get("generated_at") or when)
@@ -308,23 +487,34 @@ def merge_lists(existing, scored, when, frozen_ids=None, force=False):
         if gid in frozen_ids and previous is not None:
             merged.append(previous)
             continue
-        if fresh is None:
-            if previous is not None:
-                merged.append(_drop_group(previous, when))
-            continue
-        if previous is not None and _pids(previous) == _pids(fresh) and not force:
-            _touch_players(previous, when)
+        g_added, g_removed, g_started = classify_changes(
+            {"groups": [previous]} if previous else None,
+            {"groups": [fresh]} if fresh else None,
+            when,
+            board,
+        )
+        if previous is not None and not g_added and not g_removed and (g_started or not force):
+            fresh_ids = set(_pid(player) for player in (fresh or {}).get("players") or [])
+            _touch_listed(previous, fresh_ids, when)
+            _mark_started(previous, set(item["pid"] for item in g_started), when)
             merged.append(previous)
             continue
-        merged.append(_rebuild_group(previous, fresh, when))
+        if previous is None and fresh is None:
+            continue
+        merged.append(_rebuild_group(previous, fresh or {"id": gid, "players": []}, when, board))
     day["groups"] = merged
     if "skipped" in scored:
         day["skipped"] = list(scored.get("skipped") or [])
     if scored.get("methods"):
         day["methods"] = scored["methods"]
-    if added or removed:
+    if added or removed or started:
         snaps = list(day.get("snapshots") or [])
-        snaps.append({"time": when, "added": added, "removed": removed})
+        snaps.append({
+            "time": when,
+            "added": added,
+            "removed": removed,
+            "started": started,
+        })
         day["snapshots"] = snaps
     else:
         day.setdefault("snapshots", [])

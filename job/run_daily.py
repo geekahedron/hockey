@@ -378,15 +378,20 @@ def run(argv=None, get_json=None, tims_source=None):
                         observed,
                         frozen_ids=frozen,
                         force=bool(args.rescore),
+                        schedule=schedule_payload,
                     )
                     added = 0
                     removed = 0
+                    started = 0
                     snaps = day.get("snapshots") or []
                     if snaps and snaps[-1].get("time") == observed:
                         added = len(snaps[-1].get("added") or [])
                         removed = len(snaps[-1].get("removed") or [])
+                        started = len(snaps[-1].get("started") or [])
                     if added or removed:
                         log("lists changed %s: +%d -%d" % (when.isoformat(), added, removed))
+                    elif started:
+                        log("game started %s: %d" % (when.isoformat(), started))
                     else:
                         log("rescored pending %s" % when.isoformat())
                 if not args.no_grade:
