@@ -127,10 +127,8 @@ def fill_method_hits(group):
             block["hit"] = None
             block["top3_hits"] = None
             continue
-        if block.get("locked") is False and _group_has_starts(group):
-            block["hit"] = None
-            block["top3_hits"] = None
-            continue
+        # Games are final. Grade the pids stored on the block even when the
+        # evening check never set locked.
         pids = [int(pid) for pid in (block.get("pids") or [])]
         tied = [by_pid[pid] for pid in pids if pid in by_pid]
         if tied and all(player.get("scored") is not None for player in tied):
@@ -165,8 +163,9 @@ def _group_has_starts(group):
 def apply_grade(day, payload):
     """Fill hit / scorers / random on ``day``. Pending groups stay pending.
 
-    Returns the same day dict. The hit is the current pick. Players no longer
-    on the Tims list still receive scored and goals for reference.
+    Returns the same day dict. Once every team is final, the hit is the
+    stored pick, including a pick the evening check never locked. Players no
+    longer on the Tims list still receive scored and goals for reference.
     """
     assign_phase(day, payload)
     final, goals = goal_counts(payload)
@@ -212,8 +211,13 @@ def apply_grade(day, payload):
         scored_n = sum(player["scored"] for player in players)
         model = (group.get("method_picks") or {}).get("model") or {}
         if _group_has_starts(group):
-            if model.get("locked"):
-                wanted = set(int(pid) for pid in (model.get("pids") or []))
+            stored = model.get("pids")
+            if not stored:
+                stored = (group.get("pick") or {}).get("pids") or []
+            # Once every team is final, the stored pick counts even if the
+            # job never locked it at game start.
+            if model.get("locked") or stored:
+                wanted = set(int(pid) for pid in stored)
                 tied = [player for player in players if int(player["pid"]) in wanted]
                 if tied and all(player.get("scored") is not None for player in tied):
                     hit = sum(player["scored"] for player in tied) / float(len(tied))

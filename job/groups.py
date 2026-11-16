@@ -334,6 +334,21 @@ def _roster_map(tims_abbrs, roster_get):
     return found
 
 
+def _set_players(raw_set):
+    if isinstance(raw_set, dict):
+        return raw_set.get("players") or []
+    if isinstance(raw_set, list):
+        return raw_set
+    return []
+
+
+def _all_three_groups_empty(sets):
+    """True when Tims sent the three groups and every player list is empty."""
+    if not isinstance(sets, list) or len(sets) != 3:
+        return False
+    return all(not _set_players(raw) for raw in sets)
+
+
 def hockey_players_to_groups(data, roster_get, date):
     """Map a HockeyPlayers data object to the scorer's normalized document."""
     wanted = _as_date(date)
@@ -352,10 +367,18 @@ def hockey_players_to_groups(data, roster_get, date):
             abbr = (teams.get(side) or {}).get("abbr")
             if abbr:
                 tims_abbrs.add(abbr)
-    roster = _roster_map(tims_abbrs, roster_get)
     sets = data.get("sets") or []
     if not sets:
         _leave_published("HockeyPlayers response had no player sets.")
+    if _all_three_groups_empty(sets):
+        # Tims has cleared the lists. That is a finished check: everyone
+        # still on the published file is off the list, and a pick whose
+        # game has started stays locked. It is not a failed fetch.
+        return {
+            "date": wanted,
+            "groups": [{"id": position, "players": []} for position in (1, 2, 3)],
+        }
+    roster = _roster_map(tims_abbrs, roster_get)
     groups = []
     missing = []
     for position, raw_set in enumerate(sets, 1):
