@@ -142,6 +142,21 @@ Copy `web/index.html`, `web/app.js`, and `web/style.css` into
 `~/public_html/tools/hockey/` when the page itself should show the new names
 and charts.
 
+Days published before start times were stored need a one-time fill. This
+writes `start` on players, picks, morning rows, and list rows, plus a
+`games` map of team to NHL `startTimeUTC`. Picks and grades stay put.
+`seasons/` is not read. Run it again any time; a file that already has the
+same starts is rewritten with the same values.
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-starts \
+  --log ~/tims-hockey/logs/backfill-starts.log
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
+
 If the day files do not yet have the scoring-rate estimate and the
 goals-per-game ranking, run the backfill first. It calls the public NHL stats
 API for each slate from 2026-11-02, using totals through the previous day.

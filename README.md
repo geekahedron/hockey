@@ -131,7 +131,7 @@ The Tims adapter also accepts the `pickGroups` shape in
 and are not scored.
 
 Flags: `--date`, `--groups`, `--publish`, `--raw`, `--no-refresh`,
-`--no-grade`, `--rescore`, `--backfill-clones`, `--relabel`, `--log`. A graded
+`--no-grade`, `--rescore`, `--backfill-clones`, `--backfill-starts`, `--relabel`, `--log`. A graded
 day is not scored again. `--rescore` recomputes a slate that is still pending.
 A still-pending day is graded if its games are final. If the available
 players are unchanged, the current picks stay. If players were added or
@@ -162,6 +162,23 @@ rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/too
 Copy `web/index.html`, `web/app.js`, and `web/style.css` into
 `~/public_html/tools/hockey/` when the page itself should change. The cron
 does not copy HTML.
+
+To add NHL start times to days already published, without changing picks
+or grades, run this on the host. It reads `today.json` and
+`days/YYYY-MM-DD.json` only. It does not open `data/seasons/`. Then rsync
+so the page and the next cron share the same files:
+
+```
+cd ~/tims-hockey
+~/tims-venv/bin/python job/run_daily.py \
+  --publish ~/tims-hockey/publish \
+  --backfill-starts \
+  --log ~/tims-hockey/logs/backfill-starts.log
+rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
+```
+
+Running it again changes nothing. A date whose score feed fails is left
+as it was.
 
 If a day file does not yet have the scoring-rate estimate and the
 goals-per-game ranking, run `--backfill-clones` first. That walks every

@@ -16,6 +16,8 @@ A day that is already graded is not passed back through here.
 """
 import copy
 import datetime as dt
+import json
+import os
 
 
 def _available(player):
@@ -210,17 +212,22 @@ def _copy_block(block):
         copied["rank"] = block.get("rank")
     if "goals_per_game" in block:
         copied["goals_per_game"] = block.get("goals_per_game")
+    if block.get("start"):
+        copied["start"] = block["start"]
     return copied
 
 
 def _slim_player(player):
-    return {
+    row = {
         "pid": _pid(player),
         "name": player.get("name") or "",
         "team": player.get("team"),
         "opp": player.get("opp"),
         "home": player.get("home"),
     }
+    if player.get("start"):
+        row["start"] = player["start"]
+    return row
 
 
 def morning_from(day, when):
@@ -256,7 +263,10 @@ def _write_lists(day, when):
         for player in group.get("players") or []:
             if not _available(player):
                 continue
-            rows.append({"pid": _pid(player), "name": player.get("name") or ""})
+            row = {"pid": _pid(player), "name": player.get("name") or "", "team": player.get("team")}
+            if player.get("start"):
+                row["start"] = player["start"]
+            rows.append(row)
         groups.append({"id": group.get("id"), "players": rows})
     day["lists"] = {"at": when, "groups": groups}
     day["current_at"] = when
@@ -641,6 +651,8 @@ def _pick_block(leaders, method_id, top, locked, locked_at):
         "locked_at": locked_at,
         "top3_locked": bool(locked),
     }
+    if first.get("start"):
+        block["start"] = first["start"]
     if method_id == "hch_style":
         block["rank"] = _method_value(first, method_id)
         block["goals_per_game"] = (first.get("style") or {}).get("goals_per_game")
@@ -757,6 +769,8 @@ def apply_timeline(day, when, schedule=None):
                 "locked": model_locked,
                 "locked_at": model_block.get("locked_at"),
             }
+            if model_block.get("start"):
+                group["pick"]["start"] = model_block["start"]
             group["pick_locked"] = model_locked
             chosen = set(group["pick"]["pids"])
             for player in players:
@@ -765,7 +779,169 @@ def apply_timeline(day, when, schedule=None):
         if moment is not None:
             group["availability_at"] = when
     _write_lists(day, when)
+    propagate_starts(day, schedule)
     return day
+
+
+def _iso_start(info):
+    if not info or info.get("postponed"):
+        return None
+    start = info.get("start")
+    if start is None:
+        return None
+    return start.isoformat()
+
+
+def propagate_starts(day, schedule=None):
+    """Write NHL start times onto the day. Does not change picks or grades.
+
+    ``day["games"]`` maps a team abbreviation to that start. Players, picks,
+    the morning block, and list rows get the same ``start`` string.
+    """
+    board = game_board(schedule)
+    games = dict(day.get("games") or {})
+    for team, info in board.items():
+        iso = _iso_start(info)
+        if iso:
+            games[team] = iso
+    day["games"] = games
+    if board:
+        _stamp_starts(day, board)
+
+    def stamp(obj):
+        if not isinstance(obj, dict) or obj.get("start"):
+            return
+        team = obj.get("team")
+        if team and games.get(team):
+            obj["start"] = games[team]
+
+    by_pid = {}
+    for group in day.get("groups") or []:
+        for player in group.get("players") or []:
+            stamp(player)
+            by_pid[int(player["pid"])] = player
+        for obj in [group.get("pick")] + list((group.get("method_picks") or {}).values()):
+            stamp(obj)
+            if isinstance(obj, dict) and not obj.get("start"):
+                pids = obj.get("pids") or []
+                if pids and int(pids[0]) in by_pid and by_pid[int(pids[0])].get("start"):
+                    obj["start"] = by_pid[int(pids[0])]["start"]
+    morning = day.get("morning") if isinstance(day.get("morning"), dict) else {}
+    for group in morning.get("groups") or []:
+        for player in group.get("players") or []:
+            stamp(player)
+        for obj in [group.get("pick")] + list((group.get("method_picks") or {}).values()):
+            stamp(obj)
+    for row in (day.get("lists") or {}).get("groups") or []:
+        for entry in row.get("players") or []:
+            if not isinstance(entry, dict) or entry.get("start"):
+                continue
+            player = by_pid.get(int(entry["pid"])) if entry.get("pid") is not None else None
+            if player and player.get("start"):
+                entry["start"] = player["start"]
+            elif entry.get("team") and games.get(entry["team"]):
+                entry["start"] = games[entry["team"]]
+    return day
+
+
+def record_fingerprint(day):
+    """Picks, grades, and player results. Start times are not part of this."""
+    groups = []
+    for group in day.get("groups") or []:
+        players = []
+        for player in group.get("players") or []:
+            players.append((
+                player.get("pid"),
+                player.get("pick"),
+                player.get("available"),
+                player.get("scored"),
+                player.get("goals"),
+                (player.get("probability") or {}).get("model"),
+            ))
+        methods = {}
+        for method_id, block in (group.get("method_picks") or {}).items():
+            block = block or {}
+            methods[method_id] = (
+                tuple(block.get("pids") or []),
+                block.get("hit"),
+                tuple(block.get("top3") or []),
+                block.get("locked"),
+                block.get("top3_hits"),
+            )
+        pick = group.get("pick") or {}
+        groups.append((
+            group.get("id"),
+            group.get("status"),
+            group.get("hit"),
+            group.get("top3_hits"),
+            group.get("random"),
+            group.get("n"),
+            tuple(group.get("scorers") or []),
+            tuple(pick.get("pids") or []),
+            group.get("pick_locked"),
+            tuple(players),
+            tuple(sorted(methods.items())),
+        ))
+    morning_hits = []
+    morning = day.get("morning") if isinstance(day.get("morning"), dict) else {}
+    for group in morning.get("groups") or []:
+        morning_hits.append((group.get("id"), group.get("hit"), (group.get("pick") or {}).get("pids")))
+    return (day.get("date"), day.get("status"), tuple(groups), tuple(morning_hits))
+
+
+def publish_start_paths(publish_dir):
+    """Day files only. ``seasons/`` is never listed."""
+    paths = []
+    today = os.path.join(publish_dir, "today.json")
+    if os.path.isfile(today):
+        paths.append(today)
+    days = os.path.join(publish_dir, "days")
+    if not os.path.isdir(days):
+        return paths
+    for name in sorted(os.listdir(days)):
+        if len(name) == 15 and name.endswith(".json") and name[4] == "-" and name[7] == "-":
+            paths.append(os.path.join(days, name))
+    return paths
+
+
+def backfill_starts(publish_dir, getter, log):
+    """Add NHL start times to published days. Picks and grades stay as they are.
+
+    Reads ``today.json`` and ``days/YYYY-MM-DD.json`` only. A second run
+    leaves an already filled file unchanged. A feed failure leaves that
+    date unchanged.
+    """
+    from job.publish import _atomic_write
+
+    by_date = {}
+    for path in publish_start_paths(publish_dir):
+        with open(path) as handle:
+            doc = json.load(handle)
+        iso = doc.get("date")
+        if not iso:
+            log("starts skipped %s: no date" % path)
+            continue
+        by_date.setdefault(iso, []).append((path, doc))
+    failed = 0
+    updated = 0
+    for iso in sorted(by_date):
+        payload = getter("https://api-web.nhle.com/v1/score/%s" % iso)
+        if payload is None:
+            log("starts skipped %s: score feed failed" % iso)
+            failed += 1
+            continue
+        for path, doc in by_date[iso]:
+            before = record_fingerprint(doc)
+            propagate_starts(doc, payload)
+            if record_fingerprint(doc) != before:
+                log("starts refused %s: records changed" % os.path.basename(path))
+                failed += 1
+                continue
+            _atomic_write(path, doc)
+            updated += 1
+            log("starts %s %s" % (iso, os.path.basename(path)))
+    log("starts updated %d, failed %d" % (updated, failed))
+    return failed
 
 
 def grade_morning(day, final, goals):

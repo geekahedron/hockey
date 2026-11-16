@@ -58,9 +58,15 @@ const group = {players: [{pid: 9, start: "2026-11-17T00:00:00Z"}]};
 const pick = {team: "BOS", opp: "TOR", home: 1, pids: [9]};
 assertEqual(context.teamsAndTime(pick, group), "BOS vs TOR · 7:00 PM", "pick looks up start");
 assertEqual(context.teamsAndTime({team: "BOS", opp: "TOR", home: 1, pids: [8]}, group), "BOS vs TOR", "unknown pid");
+const viaGames = {games: {BOS: "2026-11-17T00:00:00Z"}};
+assertEqual(
+  context.teamsAndTime({team: "BOS", opp: "TOR", home: 1}, null, viaGames),
+  "BOS vs TOR · 7:00 PM",
+  "day games map"
+);
 
-if (!src.includes("teamsAndTime(player)") || !src.includes("teamsAndTime(block, group)") || !src.includes("teamsAndTime(earlier, group)")) {
-  throw new Error("matchup lines do not all use teamsAndTime");
-}
+["teamsAndTime(player, null, day)", "teamsAndTime(block, group, day)", "teamsAndTime(earlier, group, day)", "teamsAndTime(pick, group, day)"].forEach(function (needle) {
+  if (!src.includes(needle)) throw new Error("missing " + needle);
+});
 
 console.log("game time ok");

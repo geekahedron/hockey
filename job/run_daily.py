@@ -15,7 +15,8 @@ A grade that is still pending is success: the slate is published either way.
 The first lists of the day are kept as the morning picks. A later check
 that adds or removes players stores a snapshot and replaces the current
 picks. Season totals use the current picks. A day already graded at the
-start of the run is not rewritten.
+start of the run keeps its picks and grades. The run still fills in any
+missing NHL start times on that file.
 
 The run refreshes NHL results and grades every unfinished published day
 before it asks Tims for today. Grading math is unchanged.
@@ -46,7 +47,16 @@ from job.groups import FileGroupsSource, GroupsSourceError, TimsGroupsSource
 from job.publish import PublishError, list_days, load_day, publish_day
 from job.refresh import RefreshError, refresh
 from job.score import ScoreError, schedule_map, score_groups
-from job.snapshots import merge_lists, note_seen, open_slate, same_lists, stamp_toronto
+from job.snapshots import (
+    backfill_starts,
+    merge_lists,
+    note_seen,
+    open_slate,
+    propagate_starts,
+    record_fingerprint,
+    same_lists,
+    stamp_toronto,
+)
 
 
 def today_toronto():
@@ -119,6 +129,14 @@ def parse_args(argv):
     parser.add_argument(
         "--backfill-to",
         help="Last slate date for --backfill-clones (default: every later published day)",
+    )
+    parser.add_argument(
+        "--backfill-starts",
+        action="store_true",
+        help=(
+            "Add each player's NHL start time to published days and today.json. "
+            "Does not change picks or grades and does not read seasons/."
+        ),
     )
     parser.add_argument(
         "--relabel",
@@ -313,6 +331,10 @@ def run(argv=None, get_json=None, tims_source=None):
         if args.relabel:
             return relabel_days(publish_dir, log)
 
+        if args.backfill_starts:
+            failed = backfill_starts(publish_dir, getter, log)
+            return 1 if failed else 0
+
         if args.backfill_clones:
             failed = backfill_clones(
                 publish_dir, getter, raw_dir, log, args.backfill_from, args.backfill_to
@@ -341,6 +363,15 @@ def run(argv=None, get_json=None, tims_source=None):
             if prior_status == "graded":
                 kept = load_day(publish_dir, when.isoformat()) or prior
                 log("keeping graded slate %s" % when.isoformat())
+                payload = getter("https://api-web.nhle.com/v1/score/%s" % when.isoformat())
+                if payload:
+                    stamped = json.loads(json.dumps(kept))
+                    propagate_starts(stamped, payload)
+                    if record_fingerprint(stamped) == record_fingerprint(kept):
+                        kept = stamped
+                        log("starts %s" % when.isoformat())
+                    else:
+                        log("starts refused %s" % when.isoformat())
                 publish_day(publish_dir, kept, as_today=True)
             else:
                 if args.groups:
