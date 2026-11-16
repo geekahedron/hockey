@@ -234,26 +234,34 @@
     }
   }
 
-  function startIso(source, group) {
+  function startIso(source, group, day) {
     if (!source) return "";
     if (source.start || source.startTimeUTC) return source.start || source.startTimeUTC;
     var pid = source.pid != null ? source.pid : (source.pids && source.pids.length ? source.pids[0] : null);
-    if (pid == null || !group || !group.players) return "";
-    var i;
-    for (i = 0; i < group.players.length; i++) {
-      var player = group.players[i];
-      if (player.pid === pid && (player.start || player.startTimeUTC)) {
-        return player.start || player.startTimeUTC;
+    var player = null;
+    if (pid != null && group && group.players) {
+      var i;
+      for (i = 0; i < group.players.length; i++) {
+        if (group.players[i].pid === pid) {
+          player = group.players[i];
+          break;
+        }
       }
     }
+    if (player && (player.start || player.startTimeUTC)) return player.start || player.startTimeUTC;
+    var team = source.team || (player && player.team) || "";
+    var games = day && day.games;
+    var value = team && games ? games[team] : "";
+    if (typeof value === "string") return value;
+    if (value && typeof value === "object") return value.start || value.startTimeUTC || "";
     return "";
   }
 
-  function teamsAndTime(source, group) {
+  function teamsAndTime(source, group, day) {
     if (!source || !source.team || !source.opp) return "";
     var where = source.home ? "vs" : "@";
     var line = source.team + " " + where + " " + source.opp;
-    var time = torontoGameTime(startIso(source, group));
+    var time = torontoGameTime(startIso(source, group, day));
     if (time) line += " \u00b7 " + time;
     return line;
   }
@@ -580,8 +588,8 @@
     return bits.join(" \u00b7 ");
   }
 
-  function matchup(player) {
-    var line = teamsAndTime(player);
+  function matchup(player, day) {
+    var line = teamsAndTime(player, null, day);
     if (!line) return "";
     var tag = player.home ? "Home" : "Away";
     return line + " \u00b7 " + tag;
@@ -668,13 +676,13 @@
       ];
       if (!multi) {
         bits.push(h("div", {class: "who", text: pick.name || "No pick"}));
-        bits.push(h("div", {class: "muted small", text: teamsAndTime(pick, group)}));
+        bits.push(h("div", {class: "muted small", text: teamsAndTime(pick, group, day)}));
         bits.push(h("div", {class: "pct", text: pct(pick.probability)}));
       } else {
         bits.push(h("div", {class: "leaders"}, methods.map(function (method) {
           var block = pickOf(group, method.id);
           var who = block && block.name ? block.name : "\u2014";
-          var game = teamsAndTime(block, group);
+          var game = teamsAndTime(block, group, day);
           if (block && block.name && game) who += " \u00b7 " + game;
           return h("div", {class: method.id === selected.id ? "on" : ""},
             h("span", {class: "lab", text: method.label}),
@@ -687,7 +695,7 @@
         var earlier = morningPick(day, group.id, method.id);
         if (!earlier || !earlier.name || samePick(pickOf(group, method.id), earlier)) return;
         var text = "Morning pick \u00b7 " + method.label + ": " + earlier.name;
-        var morningGame = teamsAndTime(earlier, group);
+        var morningGame = teamsAndTime(earlier, group, day);
         if (morningGame) text += " \u00b7 " + morningGame;
         if (earlier.hit != null) text += " \u00b7 " + hitText(earlier.hit);
         bits.push(h("p", {class: "pickline morning-pick", text: text}));
@@ -697,7 +705,7 @@
     return wrap;
   }
 
-  function renderPlayer(player, players, method, mode, group) {
+  function renderPlayer(player, players, method, mode, group, day) {
     var selected = method && method.id ? method : methodMeta(null);
     var valueText = formatMethodValue(player, selected);
     var on = highlighted(player, players, selected.id, mode, kindOf(selected), group);
@@ -712,7 +720,7 @@
     );
     var gone = removedNote(player);
     var meta = h("div", {class: "meta"},
-      matchup(player),
+      matchup(player, day),
       player.position ? " \u00b7 " + player.position : "",
       gone ? " \u00b7 " : "",
       gone ? h("span", {class: "removed-note", text: gone}) : null,
@@ -742,23 +750,23 @@
       var cardKids = [head];
       var block = pickOf(group, selected.id);
       if (block && block.name) {
-        var currentGame = teamsAndTime(block, group);
+        var currentGame = teamsAndTime(block, group, day);
         cardKids.push(h("p", {class: "pickline", text: "Current pick: " + block.name + (currentGame ? " \u00b7 " + currentGame : "") + " \u00b7 " + formatBlock(block, selected)}));
       }
       var earlier = morningPick(day, group.id, selected.id);
       if (earlier && earlier.name && !samePick(block, earlier)) {
-        var morningGameLine = teamsAndTime(earlier, group);
+        var morningGameLine = teamsAndTime(earlier, group, day);
         var morningText = "Morning pick: " + earlier.name + (morningGameLine ? " \u00b7 " + morningGameLine : "") + " \u00b7 " + formatBlock(earlier, selected);
         if (earlier.hit != null) morningText += " \u00b7 " + hitText(earlier.hit);
         cardKids.push(h("p", {class: "pickline morning-pick", text: morningText}));
       }
       available.forEach(function (player) {
-        cardKids.push(renderPlayer(player, available, selected, mode, group));
+        cardKids.push(renderPlayer(player, available, selected, mode, group, day));
       });
       if (removed.length) {
         cardKids.push(h("p", {class: "pickline", text: "No longer on the list"}));
         removed.forEach(function (player) {
-          cardKids.push(renderPlayer(player, available, selected, mode, group));
+          cardKids.push(renderPlayer(player, available, selected, mode, group, day));
         });
       }
       if (mode === "past") {
@@ -804,7 +812,7 @@
         var cells = [
           h("td", {text: String(group.id)}),
           h("td", {class: "player-name", text: who}),
-          h("td", {text: teamsAndTime(player)})
+          h("td", {text: teamsAndTime(player, group, day)})
         ];
         methods.forEach(function (method) {
           var markValue = kindOf(method) === "rank" ? rankOf(player, method.id) : pOf(player, method.id);

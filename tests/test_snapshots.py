@@ -7,7 +7,7 @@ from job.clone_attach import set_method_picks
 from job.grade import apply_grade
 from job.publish import assert_public, publish_day
 from job.run_daily import run
-from job.snapshots import merge_lists, note_seen, open_slate, same_lists
+from job.snapshots import backfill_starts, merge_lists, note_seen, open_slate, record_fingerprint, same_lists
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -464,6 +464,114 @@ def test_top3_locks_at_each_players_start():
     assert model["pids"] == [1]
     assert model["top3"] == [1, 2, 3]
     assert model["top3_locked"] is True
+
+
+def test_open_slate_publishes_start_on_players_picks_morning_and_lists():
+    day = open_slate(_shell([_group(1, [
+        _player(1, "Early", 0.6, team="EDM", opp="SJS"),
+        _player(2, "Late", 0.2, team="TOR", opp="CBJ"),
+    ])], T0), T0, schedule=_evening_board())
+    assert day["games"]["EDM"].startswith("2026-11-17T00:00:00")
+    assert day["games"]["TOR"].startswith("2026-11-17T03:00:00")
+    by_pid = _by_pid(day["groups"][0])
+    assert by_pid[1]["start"] == day["games"]["EDM"]
+    assert by_pid[2]["start"] == day["games"]["TOR"]
+    assert day["groups"][0]["pick"]["start"] == day["games"]["EDM"]
+    assert day["groups"][0]["method_picks"]["model"]["start"] == day["games"]["EDM"]
+    morning_players = day["morning"]["groups"][0]["players"]
+    assert {row["pid"]: row["start"] for row in morning_players} == {
+        1: day["games"]["EDM"],
+        2: day["games"]["TOR"],
+    }
+    assert day["morning"]["groups"][0]["pick"]["start"] == day["games"]["EDM"]
+    listed = {row["pid"]: row["start"] for row in day["lists"]["groups"][0]["players"]}
+    assert listed[1] == day["games"]["EDM"]
+    assert listed[2] == day["games"]["TOR"]
+
+
+def test_backfill_starts_keeps_grades_and_skips_seasons(tmp_path):
+    publish = tmp_path / "data"
+    days = publish / "days"
+    days.mkdir(parents=True)
+    seasons = publish / "seasons" / "2025-26"
+    seasons.mkdir(parents=True)
+    kept = seasons / "season.json"
+    kept.write_text('{"kept": true}\n')
+    day = {
+        "schema": 1,
+        "date": "2026-11-15",
+        "status": "graded",
+        "generated_at": "2026-11-15T10:00:00-05:00",
+        "groups": [{
+            "id": 1,
+            "status": "graded",
+            "hit": 1,
+            "top3_hits": 1,
+            "random": 0.5,
+            "n": 2,
+            "scorers": ["Early"],
+            "pick_locked": True,
+            "pick": {"pids": [1], "name": "Early", "team": "EDM", "opp": "SJS", "home": 1, "probability": 0.6},
+            "players": [
+                {"pid": 1, "name": "Early", "team": "EDM", "opp": "SJS", "home": 1,
+                 "probability": {"model": 0.6}, "pick": True, "available": False,
+                 "scored": 1, "goals": 1, "game_started": True,
+                 "game_started_at": "2026-11-16T02:00:00-05:00"},
+                {"pid": 2, "name": "Late", "team": "TOR", "opp": "CBJ", "home": 1,
+                 "probability": {"model": 0.2}, "pick": False, "available": True,
+                 "scored": 0, "goals": 0},
+            ],
+            "method_picks": {
+                "model": {"pids": [1], "name": "Early", "team": "EDM", "opp": "SJS", "home": 1,
+                          "probability": 0.6, "hit": 1, "top3": [1], "locked": True, "top3_hits": 1}
+            },
+        }],
+        "morning": {
+            "at": "2026-11-15T08:00:00-05:00",
+            "groups": [{
+                "id": 1,
+                "hit": 1,
+                "pick": {"pids": [1], "name": "Early", "team": "EDM", "opp": "SJS", "home": 1},
+                "players": [{"pid": 1, "name": "Early", "team": "EDM", "opp": "SJS", "home": 1}],
+                "method_picks": {},
+            }],
+        },
+        "lists": {"at": "2026-11-15T18:00:00-05:00", "groups": [{"id": 1, "players": [{"pid": 2, "name": "Late"}]}]},
+        "skipped": [],
+    }
+    before = record_fingerprint(day)
+    raw = json.dumps(day)
+    (days / "2026-11-15.json").write_text(raw)
+    (publish / "today.json").write_text(raw)
+
+    def getter(url):
+        assert url.endswith("/score/2026-11-15")
+        return _evening_board()
+
+    failed = backfill_starts(str(publish), getter, lambda msg: None)
+    assert failed == 0
+    filled = json.loads((days / "2026-11-15.json").read_text())
+    visible = json.loads((publish / "today.json").read_text())
+    assert record_fingerprint(filled) == before
+    assert record_fingerprint(visible) == before
+    assert filled["games"]["EDM"].startswith("2026-11-17T00:00:00")
+    assert filled["groups"][0]["players"][0]["start"] == filled["games"]["EDM"]
+    assert filled["groups"][0]["pick"]["start"] == filled["games"]["EDM"]
+    assert filled["groups"][0]["method_picks"]["model"]["start"] == filled["games"]["EDM"]
+    assert filled["morning"]["groups"][0]["pick"]["start"] == filled["games"]["EDM"]
+    assert filled["morning"]["groups"][0]["players"][0]["start"] == filled["games"]["EDM"]
+    assert filled["lists"]["groups"][0]["players"][0]["start"] == filled["games"]["TOR"]
+    assert filled["groups"][0]["hit"] == 1
+    assert filled["groups"][0]["pick"]["pids"] == [1]
+    assert kept_text(kept) == '{"kept": true}\n'
+    first = (days / "2026-11-15.json").read_text()
+    assert backfill_starts(str(publish), getter, lambda msg: None) == 0
+    assert (days / "2026-11-15.json").read_text() == first
+    assert kept_text(kept) == '{"kept": true}\n'
+
+
+def kept_text(path):
+    return path.read_text()
 
 
 def test_page_shows_removed_players_and_morning_picks():
