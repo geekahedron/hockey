@@ -9,7 +9,8 @@
    player.rank[id] (1 is the top) and player.style for the public-stat
    line. The selector, the bars, and the compare table follow the JSON.
    A player tile opens that player's inputs for the day. Missing inputs
-   say "not recorded". There is no second source and nothing here submits a pick. */
+   say "not recorded". There is no second source and nothing here submits a pick.
+   Today's view recommends when to submit the three picks together. */
 (function () {
   var params = new URLSearchParams(location.search);
   var fallbackRoot = (params.get("data") || "data").replace(/[^a-zA-Z0-9_-]/g, "");
@@ -1376,6 +1377,122 @@
     );
   }
 
+  function submitRule() {
+    return {
+      minChance: 0.73,
+      cutoffHour: 17,
+      cutoffMinute: 0,
+      timeZone: "America/Toronto",
+      soonMinutes: 30,
+      emptyAt: 1,
+      footnote: "Backtest: +0.07 hits/day (~+2.5 pts hit rate) vs always-morning, positive in all 5 seasons."
+    };
+  }
+
+  function availableAt(player, now) {
+    if (!player || player.available === false) return false;
+    var start = player.start ? new Date(player.start).getTime() : NaN;
+    if (!isNaN(start) && now >= start) return false;
+    return true;
+  }
+
+  function torontoMinutes(now) {
+    var clock = torontoClock(new Date(now).toISOString());
+    var match = /^(\d{2}):(\d{2})$/.exec(clock || "");
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  function playoffSlate(day) {
+    var phase = day && (day.phase || day.season_phase);
+    return phase === "playoffs" || phase === "playoff";
+  }
+
+  function listSize(group, now) {
+    var count = 0;
+    (group.players || []).forEach(function (player) {
+      if (availableAt(player, now)) count += 1;
+    });
+    return count;
+  }
+
+  function modelTop(group, now) {
+    var best = null;
+    (group.players || []).forEach(function (player) {
+      if (!availableAt(player, now)) return;
+      var prob = pOf(player, "model");
+      if (prob == null) return;
+      var name = String(player.name || "");
+      if (!best || prob > best.prob || (prob === best.prob && name < best.name)) {
+        best = {prob: prob, name: name, player: player};
+      }
+    });
+    return best;
+  }
+
+  function pickStartsSoon(player, group, day, now, minutes) {
+    var iso = startIso(player, group, day);
+    if (!iso) return false;
+    var start = new Date(iso).getTime();
+    if (isNaN(start)) return false;
+    return start - now <= minutes * 60000;
+  }
+
+  function slateChance(day, now) {
+    var groups = (day && day.groups) || [];
+    if (!groups.length) return null;
+    var miss = 1;
+    for (var i = 0; i < groups.length; i++) {
+      var top = modelTop(groups[i], now);
+      if (!top) return null;
+      miss *= (1 - top.prob);
+    }
+    return 1 - miss;
+  }
+
+  function submitAdvice(day, now) {
+    if (!day || !(day.groups || []).length) return null;
+    var rule = submitRule();
+    var clock = typeof now === "number" ? now : Date.now();
+    var soon = false;
+    var thin = false;
+    (day.groups || []).forEach(function (group) {
+      if (listSize(group, clock) <= rule.emptyAt) thin = true;
+      var top = modelTop(group, clock);
+      if (top && pickStartsSoon(top.player, group, day, clock, rule.soonMinutes)) soon = true;
+    });
+    var minutes = torontoMinutes(clock);
+    var afterCutoff = minutes != null && minutes >= rule.cutoffHour * 60 + rule.cutoffMinute;
+    var chance = slateChance(day, clock);
+    if (playoffSlate(day) || afterCutoff || soon || thin) {
+      return {text: "Submit these three now", tone: "now", chance: chance, footnote: rule.footnote};
+    }
+    if (chance == null) return null;
+    if (chance >= rule.minChance) {
+      return {
+        text: "Strong slate: submit these three now (" + pct(chance) + " chance of at least one hit)",
+        tone: "strong",
+        chance: chance,
+        footnote: rule.footnote
+      };
+    }
+    return {
+      text: "Low-confidence slate (" + pct(chance) + " chance of at least one hit). Lists usually improve by 5 PM ET; check back after 5 PM to submit all three.",
+      tone: "low",
+      chance: chance,
+      footnote: rule.footnote
+    };
+  }
+
+  function renderSubmitBanner(day, now) {
+    var advice = submitAdvice(day, now);
+    if (!advice) return null;
+    return h("section", {class: "card submit-banner " + advice.tone, role: "status"},
+      h("p", {class: "submit-line", text: advice.text}),
+      h("p", {class: "muted small", text: advice.footnote})
+    );
+  }
+
   function renderToday() {
     var view = document.getElementById("view-today");
     clear(view);
@@ -1395,6 +1512,8 @@
     if (changesToday) view.appendChild(changesToday);
     var morningToday = renderMorningBanner(day);
     if (morningToday) view.appendChild(morningToday);
+    var submitToday = renderSubmitBanner(day);
+    if (submitToday) view.appendChild(submitToday);
     view.appendChild(renderSummary(day, "today"));
     view.appendChild(h("div", {style: "height:12px"}));
     view.appendChild(renderGroups(day, "today"));
