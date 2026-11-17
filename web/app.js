@@ -351,15 +351,61 @@
     }
   }
 
-  function removedNote(player, day, now) {
-    if (!player || !offListForDisplay(player, day, now)) return "";
-    if (!slateIsPast(day, now) && gameStartedFirst(player)) {
-      var started = torontoClock(player.start || player.game_started_at);
-      return started ? "Game started " + started : "Game started";
+  function openingIso(day) {
+    if (day && day.morning && day.morning.at) return day.morning.at;
+    if (day && day.generated_at) return day.generated_at;
+    var earliest = "";
+    (day && day.groups || []).forEach(function (group) {
+      (group.players || []).forEach(function (player) {
+        if (player.first_seen && (!earliest || player.first_seen < earliest)) earliest = player.first_seen;
+      });
+    });
+    return earliest;
+  }
+
+  function onFirstList(player, day) {
+    if (!player) return true;
+    var opened = openingIso(day);
+    if (player.first_seen && opened) {
+      return new Date(player.first_seen).getTime() <= new Date(opened).getTime();
     }
-    var when = torontoClock(player.removed_at || player.last_seen);
-    if (!when) return "Removed from the Tims list";
-    return "Removed from the Tims list at " + when;
+    var pid = player.pid;
+    var groups = day && day.morning && day.morning.groups || [];
+    var sawMorning = false;
+    var found = false;
+    groups.forEach(function (group) {
+      (group.players || []).forEach(function (row) {
+        sawMorning = true;
+        if (row.pid === pid) found = true;
+      });
+    });
+    if (sawMorning) return found;
+    return !player.first_seen;
+  }
+
+  function availabilityNote(player, day) {
+    if (!player) return "";
+    var late = !onFirstList(player, day);
+    var early = timsRemoved(player);
+    if (!late && !early) return "";
+    var appeared = torontoGameTime(player.first_seen || openingIso(day));
+    var left = torontoGameTime(player.removed_at || player.last_seen);
+    if (late && early) {
+      if (appeared && left) return "Available " + appeared + " \u2013 " + left;
+      if (appeared) return "Available " + appeared;
+      if (left) return "Available until " + left;
+      return "";
+    }
+    if (late) return appeared ? "Available " + appeared : "";
+    return left ? "Available until " + left : "";
+  }
+
+  function removedNote(player, day, now) {
+    var range = availabilityNote(player, day, now);
+    if (range) return range;
+    if (!player || slateIsPast(day, now) || !gameStartedFirst(player, now) || isAvailable(player)) return "";
+    var started = torontoClock(player.start || player.game_started_at);
+    return started ? "Game started " + started : "Game started";
   }
 
   function morningGroup(day, groupId) {
@@ -1391,12 +1437,11 @@
       players.forEach(function (player) {
         var gone = offListForDisplay(player, day);
         var who = player.name;
-        if (gone && gameStartedFirst(player)) {
+        var span = availabilityNote(player, day);
+        if (span) who = player.name + " \u00b7 " + span;
+        else if (gone && gameStartedFirst(player)) {
           var startedAt = torontoClock(player.start || player.game_started_at);
           who = player.name + (startedAt ? " \u00b7 game started " + startedAt : " \u00b7 game started");
-        } else if (gone) {
-          var when = torontoClock(player.removed_at);
-          who = player.name + (when ? " \u00b7 removed " + when : " \u00b7 removed");
         }
         var cells = [
           h("td", {text: String(group.id)}),
