@@ -243,6 +243,47 @@
     return player.available === false || clock >= start;
   }
 
+  function torontoDate(now) {
+    var date = now == null ? new Date() : new Date(now);
+    try {
+      var parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Toronto",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+      var year = "";
+      var month = "";
+      var day = "";
+      parts.forEach(function (part) {
+        if (part.type === "year") year = part.value;
+        if (part.type === "month") month = part.value;
+        if (part.type === "day") day = part.value;
+      });
+      if (year && month && day) return year + "-" + month + "-" + day;
+    } catch (err) {}
+    return date.toISOString().slice(0, 10);
+  }
+
+  function slateIsPast(day, now) {
+    if (state.backtest) return true;
+    var iso = day && String(day.date || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+    return iso < torontoDate(now);
+  }
+
+  function timsRemoved(player) {
+    if (!player || gameStartedFirst(player)) return false;
+    if (player.available === false) return true;
+    if (player.unavailable_reason === "removed") return true;
+    return !!player.removed_at;
+  }
+
+  function offListForDisplay(player, day, now) {
+    if (slateIsPast(day, now)) return timsRemoved(player);
+    return !isAvailable(player);
+  }
+
   function torontoGameTime(iso) {
     if (!iso) return "";
     var date = new Date(iso);
@@ -310,15 +351,61 @@
     }
   }
 
-  function removedNote(player) {
-    if (!player || isAvailable(player)) return "";
-    if (gameStartedFirst(player)) {
-      var started = torontoClock(player.start || player.game_started_at);
-      return started ? "Game started " + started : "Game started";
+  function openingIso(day) {
+    if (day && day.morning && day.morning.at) return day.morning.at;
+    if (day && day.generated_at) return day.generated_at;
+    var earliest = "";
+    (day && day.groups || []).forEach(function (group) {
+      (group.players || []).forEach(function (player) {
+        if (player.first_seen && (!earliest || player.first_seen < earliest)) earliest = player.first_seen;
+      });
+    });
+    return earliest;
+  }
+
+  function onFirstList(player, day) {
+    if (!player) return true;
+    var opened = openingIso(day);
+    if (player.first_seen && opened) {
+      return new Date(player.first_seen).getTime() <= new Date(opened).getTime();
     }
-    var when = torontoClock(player.removed_at || player.last_seen);
-    if (!when) return "Removed from the Tims list";
-    return "Removed from the Tims list at " + when;
+    var pid = player.pid;
+    var groups = day && day.morning && day.morning.groups || [];
+    var sawMorning = false;
+    var found = false;
+    groups.forEach(function (group) {
+      (group.players || []).forEach(function (row) {
+        sawMorning = true;
+        if (row.pid === pid) found = true;
+      });
+    });
+    if (sawMorning) return found;
+    return !player.first_seen;
+  }
+
+  function availabilityNote(player, day) {
+    if (!player) return "";
+    var late = !onFirstList(player, day);
+    var early = timsRemoved(player);
+    if (!late && !early) return "";
+    var appeared = torontoGameTime(player.first_seen || openingIso(day));
+    var left = torontoGameTime(player.removed_at || player.last_seen);
+    if (late && early) {
+      if (appeared && left) return "Available " + appeared + " \u2013 " + left;
+      if (appeared) return "Available " + appeared;
+      if (left) return "Available until " + left;
+      return "";
+    }
+    if (late) return appeared ? "Available " + appeared : "";
+    return left ? "Available until " + left : "";
+  }
+
+  function removedNote(player, day, now) {
+    var range = availabilityNote(player, day, now);
+    if (range) return range;
+    if (!player || slateIsPast(day, now) || !gameStartedFirst(player, now) || isAvailable(player)) return "";
+    var started = torontoClock(player.start || player.game_started_at);
+    return started ? "Game started " + started : "Game started";
   }
 
   function morningGroup(day, groupId) {
@@ -1130,7 +1217,7 @@
     var game = matchup(player, day);
     if (game) bits.push(game);
     if (bits.length) body.appendChild(h("p", {class: "dialog-kicker", text: bits.join(" \u00b7 ")}));
-    var gone = removedNote(player);
+    var gone = removedNote(player, day);
     if (gone) body.appendChild(h("p", {class: "removed-note", text: gone}));
     statusBadges(player).forEach(function (badge) {
       body.appendChild(h("p", {class: "status-note"},
@@ -1233,11 +1320,11 @@
         statusBadges(player).map(function (badge) {
           return [" ", h("span", {class: "pill " + badge.kind, title: badge.title || null, text: badge.label})];
         }),
-        !isAvailable(player) && gameStartedFirst(player) ? " " : null,
-        !isAvailable(player) && gameStartedFirst(player) ? h("span", {class: "pill started", text: "Game started"}) : null),
+        offListForDisplay(player, day) && gameStartedFirst(player) ? " " : null,
+        offListForDisplay(player, day) && gameStartedFirst(player) ? h("span", {class: "pill started", text: "Game started"}) : null),
       h("span", {class: "pct", text: valueText})
     );
-    var gone = removedNote(player);
+    var gone = removedNote(player, day);
     var meta = h("div", {class: "meta"},
       matchup(player, day),
       gone ? " \u00b7 " : "",
@@ -1252,10 +1339,10 @@
       aria += ", " + badge.label;
       if (badge.title) aria += ", " + badge.title;
     });
-    if (!isAvailable(player)) aria += ", no longer on the list";
+    if (offListForDisplay(player, day)) aria += ", no longer on the list";
     aria += ". Show calculation inputs.";
     return h("div", {
-      class: "player" + (on ? " pick" : "") + (!isAvailable(player) ? " removed" : ""),
+      class: "player" + (on ? " pick" : "") + (offListForDisplay(player, day) ? " removed" : ""),
       role: "button",
       tabindex: "0",
       "aria-haspopup": "dialog",
@@ -1278,8 +1365,12 @@
     var grid = h("div", {class: "groups"});
     var selected = methodMeta(day);
     (day.groups || []).forEach(function (group) {
-      var available = ordered((group.players || []).filter(isAvailable), selected.id, kindOf(selected));
-      var removed = (group.players || []).filter(function (player) { return !isAvailable(player); });
+      var available = ordered((group.players || []).filter(function (player) {
+        return !offListForDisplay(player, day);
+      }), selected.id, kindOf(selected));
+      var removed = (group.players || []).filter(function (player) {
+        return offListForDisplay(player, day);
+      });
       var hit = hitOf(group, selected.id);
       var head = h("div", {class: "ghead"},
         h("h3", {text: "Group " + group.id}),
@@ -1332,21 +1423,25 @@
     var selected = methodMeta(day);
     (day.groups || []).forEach(function (group) {
       var available = ordered((group.players || []).filter(isAvailable), selected.id, kindOf(selected));
-      var removed = (group.players || []).filter(function (player) { return !isAvailable(player); });
-      var players = available.concat(removed);
+      var removed = (group.players || []).filter(function (player) {
+        return offListForDisplay(player, day);
+      });
+      var shown = ordered((group.players || []).filter(function (player) {
+        return !offListForDisplay(player, day);
+      }), selected.id, kindOf(selected));
+      var players = shown.concat(removed);
       var best = {};
       methods.forEach(function (method) {
         best[method.id] = bestOf(available, method.id, kindOf(method));
       });
       players.forEach(function (player) {
-        var gone = !isAvailable(player);
+        var gone = offListForDisplay(player, day);
         var who = player.name;
-        if (gone && gameStartedFirst(player)) {
+        var span = availabilityNote(player, day);
+        if (span) who = player.name + " \u00b7 " + span;
+        else if (gone && gameStartedFirst(player)) {
           var startedAt = torontoClock(player.start || player.game_started_at);
           who = player.name + (startedAt ? " \u00b7 game started " + startedAt : " \u00b7 game started");
-        } else if (gone) {
-          var when = torontoClock(player.removed_at);
-          who = player.name + (when ? " \u00b7 removed " + when : " \u00b7 removed");
         }
         var cells = [
           h("td", {text: String(group.id)}),
