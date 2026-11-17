@@ -277,6 +277,8 @@ def _season_for_method(days, method_id):
             ),
             "groups": listed,
         }
+        if day.get("reconstructed"):
+            point["reconstructed"] = True
         out_days.append(point)
     summary = {
         "days": sum(1 for d in out_days if d["picks"]),
@@ -481,13 +483,16 @@ def build_index(days, today):
             if group.get("status") == "graded" and group.get("hit") is not None:
                 hits += group["hit"]
                 picks += 1
-        rows.append({
+        row = {
             "date": day.get("date"),
             "status": day.get("status"),
             "groups": len(day.get("groups") or []),
             "picks": picks,
             "hits": round(hits, 4) if picks else None,
-        })
+        }
+        if day.get("reconstructed"):
+            row["reconstructed"] = True
+        rows.append(row)
     rows.sort(key=lambda row: row["date"] or "", reverse=True)
     updated = None
     for day in days:

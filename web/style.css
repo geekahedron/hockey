@@ -56,6 +56,10 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .ok{color:var(--hit)}
 .dayhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin:6px 0 2px}
 .dayhead p{margin:0}
+.day-recon{margin:2px 0 8px;color:var(--muted);font-size:12.5px}
+td.recon{color:var(--muted)}
+.recon-mark{color:#f0d48a}
+button.ghost.recon{border-style:dashed}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .mix-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
 .mix-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px}
