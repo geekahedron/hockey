@@ -137,4 +137,35 @@ assertEqual(stored.hit_rate, 0.5, "precomputed metrics");
 assertEqual(M.storedMetrics({metrics: {model: {regular: stored}}}, "custom", "regular"), null, "custom is not read from the file");
 assertEqual(M.storedMetrics({metrics: {playoffs: {model: {hit_rate: 0.25, picks: 4, hits: 1, days_with_hit: 1, streaks: 0}}}}, "model", "playoffs").picks, 4, "phase-first metrics");
 
+const published = [
+  {id: "model", label: "Logistic model (player form + matchup)", kind: "probability"},
+  {id: "ddh_style", label: "Scoring-rate estimate", kind: "probability"},
+  {id: "goals", label: "Goals per game", kind: "rank"}
+];
+const fixed = M.aggregateMix(published);
+assertEqual(fixed.lists["1"], "ddh_style", "aggregate list 1 is the scoring-rate estimate");
+assertEqual(fixed.lists["2"], "model", "aggregate list 2 is the logistic model");
+assertEqual(fixed.lists["3"], "model", "aggregate list 3 is the logistic model");
+assertEqual(M.AGGREGATE.label, "Aggregate", "aggregate name");
+const aggDay = {
+  date: "2025-11-02",
+  status: "graded",
+  phase: "regular",
+  groups: [1, 2].map(function (id) {
+    return {
+      id: id,
+      status: "graded",
+      hit: 0,
+      players: [],
+      method_picks: {
+        model: {pids: [10 + id], name: "Model " + id, probability: 0.2, hit: 0},
+        ddh_style: {pids: [20 + id], name: "Rate " + id, probability: 0.4, hit: 1}
+      }
+    };
+  })
+};
+assertEqual(M.customPick(aggDay, aggDay.groups[0], M.aggregateMix(published), published, "morning", false, null).name, "Rate 1", "list 1 uses the scoring-rate pick");
+assertEqual(M.customPick(aggDay, aggDay.groups[1], M.aggregateMix(published), published, "morning", false, null).name, "Model 2", "list 2 uses the logistic pick");
+assertEqual(M.computeMetrics([aggDay], "aggregate", M.defaultMix(), published, "combined", "morning").hits, 1, "aggregate records do not follow the custom mix");
+
 console.log("mix ok");

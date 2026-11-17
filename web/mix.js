@@ -4,6 +4,7 @@
    window.HockeyMix is the same functions the page uses. */
 (function (root) {
   var CUSTOM = {id: "custom", label: "Custom mix", kind: "custom"};
+  var AGGREGATE = {id: "aggregate", label: "Aggregate", kind: "probability"};
   var PHASES = ["regular", "playoffs", "combined"];
 
   function defaultMix() {
@@ -342,6 +343,23 @@
     };
   }
 
+  function aggregateMix(methods) {
+    var mix = defaultMix();
+    var rate = "";
+    (methods || []).forEach(function (method) {
+      if (!method || method.id === "model" || method.id === "custom" || method.id === "aggregate") return;
+      if (method.kind === "rank") return;
+      if (method.kind === "probability" && !rate) rate = method.id;
+    });
+    if (rate) mix.lists["1"] = rate;
+    return mix;
+  }
+
+  function mixFor(methodId, config, methods) {
+    if (methodId === "aggregate") return aggregateMix(methods);
+    return config;
+  }
+
   function customPick(day, group, config, methods, mode, pending, now) {
     var view = viewOf(day, group, mode);
     var players = (view.players || []).filter(function (player) {
@@ -355,8 +373,8 @@
   }
 
   function groupHit(day, group, methodId, config, methods, mode, pending, now) {
-    if (methodId === "custom") {
-      var pick = customPick(day, group, config, methods, mode, pending, now);
+    if (methodId === "custom" || methodId === "aggregate") {
+      var pick = customPick(day, group, mixFor(methodId, config, methods), methods, mode, pending, now);
       return pick.hit == null ? null : pick.hit;
     }
     var view = viewOf(day, group, mode);
@@ -378,7 +396,7 @@
     var picks = 0;
     (day.groups || []).forEach(function (group) {
       var pending = day.status === "pending" || (group.status === "pending" && group.hit == null);
-      var hit = groupHit(day, group, methodId, config, methods, mode, pending && methodId === "custom", null);
+      var hit = groupHit(day, group, methodId, config, methods, mode, pending && (methodId === "custom" || methodId === "aggregate"), null);
       if (hit == null) return;
       picks += 1;
       hits += hit;
@@ -445,7 +463,7 @@
   }
 
   function storedMetrics(doc, methodId, phase) {
-    if (!doc || methodId === "custom") return null;
+    if (!doc || methodId === "custom" || methodId === "aggregate") return null;
     var key = phase || "combined";
     var metrics = doc.metrics;
     if (!metrics) return null;
@@ -460,6 +478,8 @@
 
   root.HockeyMix = {
     CUSTOM: CUSTOM,
+    AGGREGATE: AGGREGATE,
+    aggregateMix: aggregateMix,
     PHASES: PHASES,
     defaultMix: defaultMix,
     copyMix: copyMix,

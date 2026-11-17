@@ -23,7 +23,7 @@ function grab(name) {
 
 const names = [
   "pct", "pOf", "torontoClock", "startIso", "submitRule", "availableAt",
-  "torontoMinutes", "playoffSlate", "listSize", "modelTop", "pickStartsSoon",
+  "torontoMinutes", "playoffSlate", "listSize", "modelTop", "chosenTop", "pickStartsSoon",
   "slateChance", "submitAdvice"
 ];
 const context = {};
@@ -115,6 +115,54 @@ assertEqual(context.submitAdvice(thin, morning).text, "Submit these three now", 
 // Playoffs never wait.
 const playoffs = context.submitAdvice(day([0.2, 0.2, 0.2], {phase: "playoffs"}), morning);
 assertEqual(playoffs.text, "Submit these three now", "playoffs");
+
+const mixSrc = fs.readFileSync(path.join(__dirname, "..", "web", "mix.js"), "utf8");
+const mixBox = {window: {}};
+vm.runInNewContext(mixSrc, mixBox);
+const rateId = "ddh_style";
+context.state = {
+  method: "custom",
+  evalMode: "morning",
+  mix: {preset: "", lists: {"1": rateId, "2": "model", "3": "model"}, months: {}, phases: {}}
+};
+context.mixApi = function () { return mixBox.window.HockeyMix; };
+context.knownMethods = function () {
+  return [
+    {id: "model", label: "Logistic model (player form + matchup)", kind: "probability"},
+    {id: rateId, label: "Scoring-rate estimate", kind: "probability"},
+    {id: "hch_style", label: "Goals per game", kind: "rank"}
+  ];
+};
+function mixDay() {
+  function group(id, modelP, rateP, modelPid, ratePid) {
+    return {
+      id: id,
+      status: "pending",
+      hit: null,
+      players: [
+        {pid: modelPid, name: "Model", available: true, probability: {model: modelP, ddh_style: 0.1}},
+        {pid: ratePid, name: "Rate", available: true, probability: {model: 0.1, ddh_style: rateP}}
+      ],
+      method_picks: {
+        model: {pids: [modelPid], name: "Model", probability: modelP},
+        ddh_style: {pids: [ratePid], name: "Rate", probability: rateP}
+      }
+    };
+  }
+  return {
+    date: "2026-11-16",
+    status: "pending",
+    phase: "regular",
+    groups: [group(1, 0.4, 0.6, 1, 2), group(2, 0.2, 0.9, 3, 4), group(3, 0.2, 0.9, 5, 6)]
+  };
+}
+const mixed = context.submitAdvice(mixDay(), morning);
+assertEqual(mixed.tone, "strong", "custom mix uses list 1 rate and lists 2 and 3 model");
+assertEqual(Math.round(mixed.chance * 1000) / 1000, 0.744, "1 - 0.4 * 0.8 * 0.8");
+context.state.method = "aggregate";
+const aggregate = context.submitAdvice(mixDay(), morning);
+assertEqual(aggregate.tone, "strong", "aggregate banner uses the fixed mix");
+assertEqual(Math.round(aggregate.chance * 1000) / 1000, 0.744, "aggregate chance matches the fixed lists");
 
 const todayFn = grab("renderToday");
 const pastFn = grab("renderPast");
