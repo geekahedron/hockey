@@ -352,6 +352,7 @@
       if (method.kind === "probability" && !rate) rate = method.id;
     });
     if (rate) mix.lists["1"] = rate;
+    mix.phases.playoffs = "model";
     return mix;
   }
 

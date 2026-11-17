@@ -2236,7 +2236,7 @@
     });
     panel.appendChild(h("div", null,
       h("h2", {text: "Custom mix"}),
-      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. Aggregate is separate: list 1 is the scoring-rate estimate and lists 2 and 3 are the logistic model."}),
+      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. Aggregate is separate: in the regular season, list 1 is the scoring-rate estimate and lists 2 and 3 are the logistic model. In the playoffs, all three lists use the logistic model."}),
       h("div", {class: "mix-row"}, h("label", null, "Preset", preset)),
       grid,
       h("div", {class: "mix-row"},
