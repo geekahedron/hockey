@@ -1,4 +1,4 @@
-/* First visit opens on a custom mix. A saved choice stays put. */
+/* First visit opens on Aggregate. A saved choice stays put. */
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -23,9 +23,7 @@ function grab(name) {
 
 const context = {};
 vm.runInNewContext(
-  [grab("scoringRateId"), grab("initialView"),
-    "this.scoringRateId = scoringRateId; this.initialView = initialView;"
-  ].join("\n"),
+  [grab("initialView"), "this.initialView = initialView;"].join("\n"),
   context
 );
 
@@ -38,12 +36,11 @@ const methods = [
   {id: "ddh_style", label: "Scoring-rate estimate", kind: "probability"},
   {id: "hch_style", label: "Goals per game", kind: "rank"}
 ];
-assertEqual(context.scoringRateId(methods), "ddh_style", "scoring-rate id");
 assertEqual(methods[1].label, "Scoring-rate estimate", "public name");
 
 const fresh = context.initialView(null, null, null, null);
 assertEqual(fresh.fresh, true, "no storage is a first visit");
-assertEqual(fresh.method, "custom", "first visit uses the custom mix");
+assertEqual(fresh.method, "aggregate", "first visit uses Aggregate");
 
 const savedModel = context.initialView("", "model", null, null);
 assertEqual(savedModel.fresh, false, "empty saved mix is a choice");

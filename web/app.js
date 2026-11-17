@@ -41,7 +41,6 @@
     summaryDoc: null
   };
   var lastPlayerButton = null;
-  var usingVisitorMix = false;
 
   var views = ["today", "past", "season"];
 
@@ -585,6 +584,7 @@
 
   function methodMeta(doc) {
     var rules = mixApi();
+    if (state.method === "aggregate" && rules) return rules.AGGREGATE;
     if (state.method === "custom" && rules) return rules.CUSTOM;
     var list = methodsOf(doc || state.today || state.season || {});
     var known = knownMethods();
@@ -620,10 +620,11 @@
   function pickOf(group, methodId) {
     var rules = mixApi();
     var day = currentDayFor(group);
-    if (rules && (state.evalMode === "full_day" || methodId === "custom")) {
+    if (rules && (state.evalMode === "full_day" || methodId === "custom" || methodId === "aggregate")) {
       var pending = !group || group.status === "pending" || group.hit == null && day.status === "pending";
-      if (methodId === "custom") {
-        return rules.customPick(day, group, state.mix, knownMethods(), state.evalMode, pending, Date.now());
+      if (methodId === "custom" || methodId === "aggregate") {
+        var config = methodId === "aggregate" ? rules.aggregateMix(knownMethods()) : state.mix;
+        return rules.customPick(day, group, config, knownMethods(), state.evalMode, pending, Date.now());
       }
       var view = rules.viewOf(day, group, state.evalMode);
       var block = view.method_picks && view.method_picks[methodId];
@@ -639,7 +640,7 @@
 
   function hitOf(group, methodId) {
     var rules = mixApi();
-    if (rules && (methodId === "custom" || state.evalMode === "full_day")) {
+    if (rules && (methodId === "custom" || methodId === "aggregate" || state.evalMode === "full_day")) {
       var day = currentDayFor(group);
       var pending = !group || group.status === "pending" || (group.hit == null && day.status === "pending");
       return rules.groupHit(day, group, methodId, state.mix, knownMethods(), state.evalMode, pending, Date.now());
@@ -704,8 +705,8 @@
   }
 
   function highlighted(player, players, method, mode, kind, group) {
-    if (method === "custom") {
-      var block = pickOf(group, "custom");
+    if (method === "custom" || method === "aggregate") {
+      var block = pickOf(group, method);
       return !!(block && block.pids && block.pids.indexOf(player.pid) !== -1);
     }
     if (pickLockedNow(group, method)) return isStoredPick(player, group, method);
@@ -817,16 +818,15 @@
   }
 
   function trackMethods(doc) {
-    var methods = displayMethods(doc);
+    var methods = displayMethods(doc).filter(function (method) {
+      return method.id !== "aggregate" && method.id !== "custom";
+    });
     var rules = mixApi();
-    if (rules && !methods.some(function (method) { return method.id === "custom"; })) {
-      methods.push(rules.CUSTOM);
-    }
-    return methods;
+    if (!rules) return methods;
+    return [rules.AGGREGATE].concat(methods).concat([rules.CUSTOM]);
   }
 
   function fillMethodSelect() {
-    applyVisitorMix();
     var sel = document.getElementById("method");
     var methods = trackMethods(state.today || state.season || {});
     clear(sel);
@@ -843,10 +843,10 @@
       slot.textContent = "More methods later";
       sel.appendChild(slot);
     }
-    if (state.method !== "custom" && !methods.some(function (m) { return m.id === state.method; })) {
+    if (state.method !== "custom" && state.method !== "aggregate" && !methods.some(function (m) { return m.id === state.method; })) {
       state.method = "model";
     }
-    sel.value = state.method === "custom" || methods.some(function (m) { return m.id === state.method; })
+    sel.value = state.method === "custom" || state.method === "aggregate" || methods.some(function (m) { return m.id === state.method; })
       ? state.method
       : "model";
   }
@@ -1528,14 +1528,15 @@
   }
 
   function chosenTop(group, day, now) {
-    var custom = typeof state !== "undefined" && state && state.method === "custom";
-    if (custom && typeof mixApi === "function" && mixApi()) {
+    var mixed = typeof state !== "undefined" && state && (state.method === "custom" || state.method === "aggregate");
+    if (mixed && typeof mixApi === "function" && mixApi()) {
       var rules = mixApi();
       var pending = !group || group.status === "pending" || (group.hit == null && day && day.status === "pending");
+      var config = state.method === "aggregate" ? rules.aggregateMix(knownMethods()) : (state.mix || rules.defaultMix());
       var pick = rules.customPick(
         day,
         group,
-        state.mix || rules.defaultMix(),
+        config,
         knownMethods(),
         state.evalMode || "morning",
         !!pending,
@@ -1550,7 +1551,7 @@
       return {prob: pick.probability, name: pick.name || "", player: player};
     }
     var methodId = "model";
-    if (typeof state !== "undefined" && state && state.method && state.method !== "custom") methodId = state.method;
+    if (typeof state !== "undefined" && state && state.method && state.method !== "custom" && state.method !== "aggregate") methodId = state.method;
     return modelTop(group, now, methodId);
   }
 
@@ -1745,7 +1746,8 @@
   var SERIES_STYLES = [
     {color: "#ff8c1a", width: 3.6, dash: null, marker: "circle", markerSize: 4.6},
     {color: "#7eb6ff", width: 2.4, dash: "7 4", marker: "square", markerSize: 2.7},
-    {color: "#6fd389", width: 2.2, dash: "1.2 3.4", marker: "diamond", markerSize: 3.5}
+    {color: "#6fd389", width: 2.2, dash: "1.2 3.4", marker: "diamond", markerSize: 3.5},
+    {color: "#f0d48a", width: 2.6, dash: "4 3", marker: "circle", markerSize: 3.4}
   ];
 
   function seriesStyle(index) {
@@ -2030,31 +2032,13 @@
     } catch (err) {}
   }
 
-  function scoringRateId(methods) {
-    var id = "";
-    (methods || []).forEach(function (method) {
-      if (!method || method.id === "model" || method.id === "custom" || method.kind === "rank") return;
-      if (method.kind === "probability" && !id) id = method.id;
-    });
-    return id;
-  }
-
   function initialView(storedMix, storedMethod, queryMix, queryMethod) {
     var method = "model";
     var fresh = storedMix == null && !queryMix;
     if (queryMethod) method = queryMethod;
     else if (storedMethod) method = storedMethod;
-    else if (fresh) method = "custom";
+    else if (fresh) method = "aggregate";
     return {fresh: fresh, method: method};
-  }
-
-  function applyVisitorMix() {
-    if (!usingVisitorMix) return;
-    var rate = scoringRateId(knownMethods());
-    if (!rate || !state.mix || !state.mix.lists) return;
-    state.mix.lists["1"] = rate;
-    state.mix.lists["2"] = "model";
-    state.mix.lists["3"] = "model";
   }
 
   function loadMixFromPage() {
@@ -2066,7 +2050,6 @@
     var query = new URLSearchParams(location.search);
     var storedMix = readStored("hockey.mix");
     var chosen = initialView(storedMix, readStored("hockey.method"), query.get("mix"), query.get("method"));
-    usingVisitorMix = chosen.fresh && chosen.method === "custom";
     if (query.get("mix")) state.mix = rules.parseMix(query.get("mix"));
     else if (chosen.fresh) state.mix = rules.defaultMix();
     else state.mix = rules.parseMix(storedMix || "");
@@ -2084,13 +2067,12 @@
     var encoded = rules.serializeMix(state.mix);
     if (encoded) url.searchParams.set("mix", encoded);
     else url.searchParams.delete("mix");
-    if (state.method === "custom") url.searchParams.set("method", "custom");
+    if (state.method === "custom" || state.method === "aggregate") url.searchParams.set("method", state.method);
     else url.searchParams.delete("method");
     if (state.phaseFilter && state.phaseFilter !== "combined") url.searchParams.set("phase", state.phaseFilter);
     else url.searchParams.delete("phase");
     if (state.evalMode === "full_day") url.searchParams.set("eval", "full_day");
     else url.searchParams.delete("eval");
-    usingVisitorMix = false;
     writeStored("hockey.mix", encoded);
     writeStored("hockey.method", state.method);
     writeStored("hockey.phase", state.phaseFilter);
@@ -2179,7 +2161,7 @@
     });
     panel.appendChild(h("div", null,
       h("h2", {text: "Custom mix"}),
-      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. A first visit uses the scoring-rate estimate for list 1 and the logistic model for lists 2 and 3. A saved choice replaces that."}),
+      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. Aggregate is separate: list 1 is the scoring-rate estimate and lists 2 and 3 are the logistic model."}),
       h("div", {class: "mix-row"}, h("label", null, "Preset", preset)),
       grid,
       h("div", {class: "mix-row"},
@@ -2282,7 +2264,7 @@
     var rules = mixApi();
     if (!rules) return null;
     var mode = state.evalMode;
-    if (methodId !== "custom" && mode !== "full_day") {
+    if (methodId !== "custom" && methodId !== "aggregate" && mode !== "full_day") {
       var stored = rules.storedMetrics(state.allSeasons ? state.summaryDoc : state.season, methodId, phase);
       if (!stored && state.allSeasons) stored = rules.storedMetrics(state.summaryDoc, methodId, phase);
       if (stored && !(state.catalog && state.catalog.length)) return stored;
@@ -2313,7 +2295,7 @@
   function renderMetrics(view) {
     var rules = mixApi();
     if (!rules) return;
-    var selected = state.method === "custom" ? rules.CUSTOM : methodMeta(state.season || {});
+    var selected = state.method === "custom" ? rules.CUSTOM : (state.method === "aggregate" ? rules.AGGREGATE : methodMeta(state.season || {}));
     var phases = [
       ["regular", "Regular season"],
       ["playoffs", "Playoffs"],
@@ -2371,6 +2353,72 @@
       filter,
       blocks
     ));
+  }
+
+  function aggregateChartSeries(dates, groupId) {
+    var rules = mixApi();
+    if (!rules || !(state.catalog || []).length || !dates || !dates.length) return null;
+    var methods = knownMethods();
+    var mix = rules.aggregateMix(methods);
+    var mode = state.evalMode || "morning";
+    var byDate = {};
+    state.catalog.forEach(function (day) {
+      if (day && day.date && !byDate[day.date]) byDate[day.date] = day;
+    });
+    var total = 0;
+    var count = 0;
+    var started = false;
+    var hits = [];
+    var rates = [];
+    dates.forEach(function (date) {
+      var day = byDate[date];
+      var amount = null;
+      var n = 0;
+      if (day && groupId == null) {
+        var record = rules.dayRecord(day, "aggregate", mix, methods, mode);
+        if (record) {
+          amount = record.hits;
+          n = record.picks;
+        }
+      } else if (day) {
+        var group = null;
+        (day.groups || []).forEach(function (item) {
+          if (item && item.id === groupId) group = item;
+        });
+        if (group) {
+          var pending = day.status === "pending" || (group.status === "pending" && group.hit == null);
+          var hit = rules.groupHit(day, group, "aggregate", mix, methods, mode, pending, null);
+          if (hit != null) {
+            amount = hit;
+            n = 1;
+          }
+        }
+      }
+      if (amount != null && n) {
+        started = true;
+        total += amount;
+        count += n;
+      }
+      if (!started || !count) {
+        hits.push(null);
+        rates.push(null);
+      } else {
+        hits.push(Math.round(total * 1000) / 1000);
+        rates.push(Math.round((total / count) * 10000) / 10000);
+      }
+    });
+    return {id: "aggregate", label: "Aggregate", kind: "probability", hits: hits, hit_rate: rates};
+  }
+
+  function withAggregate(block, groupId) {
+    if (!block || !block.series) return block;
+    if (block.series.some(function (item) { return item.id === "aggregate"; })) return block;
+    var extra = aggregateChartSeries(block.dates || [], groupId);
+    if (!extra) return block;
+    var copy = {};
+    Object.keys(block).forEach(function (key) { copy[key] = block[key]; });
+    copy.series = block.series.concat([extra]);
+    return copy;
   }
 
   function renderSeason() {
@@ -2451,23 +2499,25 @@
         h("div", {class: "stat"}, h("b", {text: pct(sum.random_baseline)}), h("span", {text: "Random baseline"}))
       ),
       season.charts && season.charts.overall
-        ? h("div", null, chartLegend(season.charts.overall), chartPair(season.charts.overall))
+        ? h("div", null, chartLegend(withAggregate(season.charts.overall, null)), chartPair(withAggregate(season.charts.overall, null)))
         : h("p", {class: "muted", text: "Year-to-date charts appear after the season file is rebuilt."})
     ));
     if (season.charts && season.charts.groups && season.charts.groups.length) {
       view.appendChild(h("h2", {class: "section-title", text: "By pick"}));
       season.charts.groups.forEach(function (group) {
+        var chart = withAggregate(group, group.id);
         view.appendChild(h("section", {class: "card"},
           h("h2", {text: group.label || ("Pick " + group.id)}),
-          h("p", {class: "muted small", text: "Same three methods, this pick only, with this pick's random baseline."}),
-          chartPair(group)
+          h("p", {class: "muted small", text: "Each method on this pick, with this pick's random baseline."}),
+          chartLegend(chart),
+          chartPair(chart)
         ));
       });
     }
 
     var valueHeader = kindOf(selected) === "rank" ? "Goals/game" : "Probability";
     var body = document.createElement("tbody");
-    var useDays = state.method === "custom" || state.phaseFilter !== "combined" || state.evalMode === "full_day";
+    var useDays = state.method === "custom" || state.method === "aggregate" || state.phaseFilter !== "combined" || state.evalMode === "full_day";
     var tableDays = useDays && state.catalog && state.catalog.length
       ? state.catalog.filter(function (day) {
         if (state.phaseFilter !== "combined" && mixApi() && mixApi().phaseOf(day) !== state.phaseFilter) return false;
@@ -2560,7 +2610,7 @@
       ensureRecords().then(function () {
         if (state.view === "season") renderSeason();
       });
-    } else if (state.method === "custom") {
+    } else if (state.method === "custom" || state.method === "aggregate") {
       ensureRecords();
     }
   }

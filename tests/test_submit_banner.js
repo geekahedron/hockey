@@ -159,6 +159,10 @@ function mixDay() {
 const mixed = context.submitAdvice(mixDay(), morning);
 assertEqual(mixed.tone, "strong", "custom mix uses list 1 rate and lists 2 and 3 model");
 assertEqual(Math.round(mixed.chance * 1000) / 1000, 0.744, "1 - 0.4 * 0.8 * 0.8");
+context.state.method = "aggregate";
+const aggregate = context.submitAdvice(mixDay(), morning);
+assertEqual(aggregate.tone, "strong", "aggregate banner uses the fixed mix");
+assertEqual(Math.round(aggregate.chance * 1000) / 1000, 0.744, "aggregate chance matches the fixed lists");
 
 const todayFn = grab("renderToday");
 const pastFn = grab("renderPast");
