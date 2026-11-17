@@ -37,7 +37,7 @@ function assertEqual(actual, expected, label) {
 }
 
 const rule = context.submitRule();
-assertEqual(rule.minChance, 0.73, "threshold");
+assertEqual(rule.minChance, 0.70, "threshold");
 assertEqual(rule.cutoffHour, 17, "cutoff hour");
 assertEqual(rule.cutoffMinute, 0, "cutoff minute");
 assertEqual(rule.timeZone, "America/Toronto", "zone");
@@ -76,6 +76,9 @@ const morning = Date.parse("2026-11-16T15:00:00Z");
 const strong = context.submitAdvice(day([0.5, 0.5, 0.5]), morning);
 assertEqual(strong.tone, "strong", "strong tone");
 assertEqual(strong.chance >= rule.minChance, true, "above the threshold");
+const borderline = context.submitAdvice(day([0.3, 0.3, 0.4]), morning);
+assertEqual(borderline.chance >= 0.70 && borderline.chance < 0.73, true, "between the old and new cutoff");
+assertEqual(borderline.tone, "strong", "0.70 is enough to submit");
 assertEqual(
   strong.text,
   "Strong slate: submit these three now (87.5% chance of at least one hit)",
@@ -165,8 +168,10 @@ assertEqual(aggregate.tone, "strong", "aggregate banner uses the fixed mix");
 assertEqual(Math.round(aggregate.chance * 1000) / 1000, 0.744, "aggregate chance matches the fixed lists");
 
 const todayFn = grab("renderToday");
+const picksFn = grab("renderTodayPicks");
 const pastFn = grab("renderPast");
-if (todayFn.indexOf("renderSubmitBanner") < 0) throw new Error("banner missing on today");
-if (pastFn.indexOf("renderSubmitBanner") >= 0) throw new Error("banner shown on past days");
+if (todayFn.indexOf("renderTodayPicks") < 0) throw new Error("today picks box missing");
+if (picksFn.indexOf("renderSubmitBanner") < 0) throw new Error("banner not attached to the picks");
+if (pastFn.indexOf("renderSubmitBanner") >= 0 || pastFn.indexOf("renderTodayPicks") >= 0) throw new Error("banner shown on past days");
 
 console.log("submit banner ok");
