@@ -146,6 +146,7 @@ const fixed = M.aggregateMix(published);
 assertEqual(fixed.lists["1"], "ddh_style", "aggregate list 1 is the scoring-rate estimate");
 assertEqual(fixed.lists["2"], "model", "aggregate list 2 is the logistic model");
 assertEqual(fixed.lists["3"], "model", "aggregate list 3 is the logistic model");
+assertEqual(fixed.phases.playoffs, "model", "playoffs use the logistic model on every list");
 assertEqual(M.AGGREGATE.label, "Aggregate", "aggregate name");
 const aggDay = {
   date: "2025-11-02",
@@ -166,6 +167,11 @@ const aggDay = {
 };
 assertEqual(M.customPick(aggDay, aggDay.groups[0], M.aggregateMix(published), published, "morning", false, null).name, "Rate 1", "list 1 uses the scoring-rate pick");
 assertEqual(M.customPick(aggDay, aggDay.groups[1], M.aggregateMix(published), published, "morning", false, null).name, "Model 2", "list 2 uses the logistic pick");
+const playoffDay = JSON.parse(JSON.stringify(aggDay));
+playoffDay.phase = "playoffs";
+assertEqual(M.customPick(playoffDay, playoffDay.groups[0], M.aggregateMix(published), published, "morning", false, null).name, "Model 1", "playoff list 1 uses the logistic pick");
+assertEqual(M.groupHit(playoffDay, playoffDay.groups[0], "aggregate", M.defaultMix(), published, "morning", false, null), 0, "playoff aggregate hit follows the logistic pick");
+assertEqual(M.computeMetrics([playoffDay], "aggregate", M.defaultMix(), published, "playoffs", "morning").hits, 0, "playoff aggregate records use the logistic model");
 assertEqual(M.computeMetrics([aggDay], "aggregate", M.defaultMix(), published, "combined", "morning").hits, 1, "aggregate records do not follow the custom mix");
 
 function gradedGroup(id, modelTop, rateTop, random) {
@@ -190,5 +196,11 @@ assertEqual(aggRates.top3_rate, 5 / 9, "list 1 uses the scoring-rate top 3");
 assertEqual(aggRates.random_baseline, 0.5, "random baseline ignores the method");
 const modelRates = M.mixRates(rateDays, M.defaultMix(), published);
 assertEqual(modelRates.top3_rate, 3 / 9, "all-model top 3 is the logistic top 3");
+const playoffRates = M.mixRates([{
+  date: "2026-04-20",
+  phase: "playoffs",
+  groups: rateDays[0].groups
+}], M.aggregateMix(published), published);
+assertEqual(playoffRates.top3_rate, 3 / 9, "playoff aggregate top 3 follows the logistic model");
 
 console.log("mix ok");
