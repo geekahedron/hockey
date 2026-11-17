@@ -41,6 +41,7 @@
     summaryDoc: null
   };
   var lastPlayerButton = null;
+  var usingVisitorMix = false;
 
   var views = ["today", "past", "season"];
 
@@ -825,6 +826,7 @@
   }
 
   function fillMethodSelect() {
+    applyVisitorMix();
     var sel = document.getElementById("method");
     var methods = trackMethods(state.today || state.season || {});
     clear(sel);
@@ -1511,11 +1513,11 @@
     return count;
   }
 
-  function modelTop(group, now) {
+  function modelTop(group, now, methodId) {
     var best = null;
     (group.players || []).forEach(function (player) {
       if (!availableAt(player, now)) return;
-      var prob = pOf(player, "model");
+      var prob = pOf(player, methodId || "model");
       if (prob == null) return;
       var name = String(player.name || "");
       if (!best || prob > best.prob || (prob === best.prob && name < best.name)) {
@@ -1523,6 +1525,33 @@
       }
     });
     return best;
+  }
+
+  function chosenTop(group, day, now) {
+    var custom = typeof state !== "undefined" && state && state.method === "custom";
+    if (custom && typeof mixApi === "function" && mixApi()) {
+      var rules = mixApi();
+      var pending = !group || group.status === "pending" || (group.hit == null && day && day.status === "pending");
+      var pick = rules.customPick(
+        day,
+        group,
+        state.mix || rules.defaultMix(),
+        knownMethods(),
+        state.evalMode || "morning",
+        !!pending,
+        now
+      );
+      if (!pick || typeof pick.probability !== "number") return null;
+      var player = null;
+      var pids = pick.pids || [];
+      (group.players || []).forEach(function (row) {
+        if (!player && pids.indexOf(row.pid) !== -1) player = row;
+      });
+      return {prob: pick.probability, name: pick.name || "", player: player};
+    }
+    var methodId = "model";
+    if (typeof state !== "undefined" && state && state.method && state.method !== "custom") methodId = state.method;
+    return modelTop(group, now, methodId);
   }
 
   function pickStartsSoon(player, group, day, now, minutes) {
@@ -1538,7 +1567,7 @@
     if (!groups.length) return null;
     var miss = 1;
     for (var i = 0; i < groups.length; i++) {
-      var top = modelTop(groups[i], now);
+      var top = chosenTop(groups[i], day, now);
       if (!top) return null;
       miss *= (1 - top.prob);
     }
@@ -1553,7 +1582,7 @@
     var thin = false;
     (day.groups || []).forEach(function (group) {
       if (listSize(group, clock) <= rule.emptyAt) thin = true;
-      var top = modelTop(group, clock);
+      var top = chosenTop(group, day, clock);
       if (top && pickStartsSoon(top.player, group, day, clock, rule.soonMinutes)) soon = true;
     });
     var minutes = torontoMinutes(clock);
@@ -2001,6 +2030,33 @@
     } catch (err) {}
   }
 
+  function scoringRateId(methods) {
+    var id = "";
+    (methods || []).forEach(function (method) {
+      if (!method || method.id === "model" || method.id === "custom" || method.kind === "rank") return;
+      if (method.kind === "probability" && !id) id = method.id;
+    });
+    return id;
+  }
+
+  function initialView(storedMix, storedMethod, queryMix, queryMethod) {
+    var method = "model";
+    var fresh = storedMix == null && !queryMix;
+    if (queryMethod) method = queryMethod;
+    else if (storedMethod) method = storedMethod;
+    else if (fresh) method = "custom";
+    return {fresh: fresh, method: method};
+  }
+
+  function applyVisitorMix() {
+    if (!usingVisitorMix) return;
+    var rate = scoringRateId(knownMethods());
+    if (!rate || !state.mix || !state.mix.lists) return;
+    state.mix.lists["1"] = rate;
+    state.mix.lists["2"] = "model";
+    state.mix.lists["3"] = "model";
+  }
+
   function loadMixFromPage() {
     var rules = mixApi();
     if (!rules) {
@@ -2008,9 +2064,13 @@
       return;
     }
     var query = new URLSearchParams(location.search);
+    var storedMix = readStored("hockey.mix");
+    var chosen = initialView(storedMix, readStored("hockey.method"), query.get("mix"), query.get("method"));
+    usingVisitorMix = chosen.fresh && chosen.method === "custom";
     if (query.get("mix")) state.mix = rules.parseMix(query.get("mix"));
-    else state.mix = rules.parseMix(readStored("hockey.mix") || "");
-    if (query.get("method") === "custom") state.method = "custom";
+    else if (chosen.fresh) state.mix = rules.defaultMix();
+    else state.mix = rules.parseMix(storedMix || "");
+    state.method = chosen.method;
     var phase = query.get("phase") || readStored("hockey.phase") || "combined";
     state.phaseFilter = phase === "regular" || phase === "playoffs" ? phase : "combined";
     var evalMode = query.get("eval") || readStored("hockey.eval") || "morning";
@@ -2030,7 +2090,9 @@
     else url.searchParams.delete("phase");
     if (state.evalMode === "full_day") url.searchParams.set("eval", "full_day");
     else url.searchParams.delete("eval");
+    usingVisitorMix = false;
     writeStored("hockey.mix", encoded);
+    writeStored("hockey.method", state.method);
     writeStored("hockey.phase", state.phaseFilter);
     writeStored("hockey.eval", state.evalMode);
     var next = url.pathname + url.search + url.hash;
@@ -2117,7 +2179,7 @@
     });
     panel.appendChild(h("div", null,
       h("h2", {text: "Custom mix"}),
-      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. The page still opens on the logistic model."}),
+      h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. A first visit uses the scoring-rate estimate for list 1 and the logistic model for lists 2 and 3. A saved choice replaces that."}),
       h("div", {class: "mix-row"}, h("label", null, "Preset", preset)),
       grid,
       h("div", {class: "mix-row"},
