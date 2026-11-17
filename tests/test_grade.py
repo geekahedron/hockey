@@ -4,7 +4,7 @@ import os
 import sys
 
 from job.grade import apply_grade, goal_counts
-from job.publish import build_season, publish_day
+from job.publish import build_index, build_season, publish_day
 from job.score import _pending_group
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -229,3 +229,21 @@ def test_publish_layout_and_refuses_banned_content(tmp_path):
     except PublishError:
         raised = True
     assert raised
+
+
+def test_reconstructed_days_stay_in_the_tracker_and_index():
+    early = _day("2026-09-29", [[_player(1, "A", 0.4), _player(2, "B", 0.2)]])
+    early["reconstructed"] = True
+    live = _day("2026-11-02", [[_player(3, "C", 0.4), _player(4, "D", 0.2)]])
+    apply_grade(early, {"games": [_final("EDM", "SJS", [1])]})
+    apply_grade(live, {"games": [_final("EDM", "SJS", [3])]})
+    season = build_season([early, live])
+    assert season["summary"]["days"] == 2
+    assert season["summary"]["picks"] == 2
+    assert [day.get("reconstructed") for day in season["days"]] == [True, None]
+    assert season["by_method"]["model"]["days"][0]["reconstructed"] is True
+    assert "reconstructed" not in season["by_method"]["model"]["days"][1]
+    index = build_index([early, live], "2026-11-02")
+    by_date = {row["date"]: row for row in index["days"]}
+    assert by_date["2026-09-29"]["reconstructed"] is True
+    assert "reconstructed" not in by_date["2026-11-02"]

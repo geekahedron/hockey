@@ -537,6 +537,11 @@
     return h("p", {class: "muted small skipped", text: "Skipped: " + names.join(", ")});
   }
 
+  function reconstructedLabel(day) {
+    if (!day || !day.reconstructed) return "";
+    return "Reconstructed from historical data \u2014 live tracking began Nov 2";
+  }
+
   function pretty(iso) {
     if (!iso) return "";
     var p = iso.split("-");
@@ -1628,9 +1633,7 @@
         h("p", {class: "muted", text: "today.json has not been published. The daily job writes it before the games."})));
       return;
     }
-    view.appendChild(h("div", {class: "dayhead"},
-      h("h2", {text: pretty(day.date)}),
-      h("p", {class: "muted", text: statusLine(day)})));
+    view.appendChild(renderDayHead(day));
     var skippedToday = renderSkipped(day);
     if (skippedToday) view.appendChild(skippedToday);
     var changesToday = renderListChanges(day);
@@ -1645,13 +1648,36 @@
     view.appendChild(renderCompare(day));
   }
 
+  function renderDayHead(day) {
+    var head = h("div", {class: "dayhead"},
+      h("h2", {text: pretty(day.date)}),
+      h("p", {class: "muted", text: statusLine(day)}));
+    var note = reconstructedLabel(day);
+    if (!note) return head;
+    return h("div", null, head, h("p", {class: "day-recon", text: note}));
+  }
+
+  function dateCell(day) {
+    var label = pretty(day && day.date);
+    if (!day || !day.reconstructed) return h("td", {text: label});
+    return h("td", {class: "recon"},
+      label,
+      h("span", {
+        class: "recon-mark",
+        title: reconstructedLabel(day),
+        text: " \u00b7 recon"
+      })
+    );
+  }
+
   function dateButton(row) {
     var label = pretty(row.date);
     if (row.picks) label += " \u00b7 " + row.hits + "/" + row.picks;
     else label += " \u00b7 pending";
     return h("button", {
       type: "button",
-      class: "ghost" + (row.date === state.pastDate ? " on" : ""),
+      class: "ghost" + (row.date === state.pastDate ? " on" : "") + (row.reconstructed ? " recon" : ""),
+      title: row.reconstructed ? reconstructedLabel(row) : null,
       text: label,
       onclick: function () { selectPast(row.date); }
     });
@@ -1727,9 +1753,7 @@
       return;
     }
     var day = state.past;
-    view.appendChild(h("div", {class: "dayhead"},
-      h("h2", {text: pretty(day.date)}),
-      h("p", {class: "muted", text: statusLine(day)})));
+    view.appendChild(renderDayHead(day));
     var skippedPast = renderSkipped(day);
     if (skippedPast) view.appendChild(skippedPast);
     var changesPast = renderListChanges(day);
@@ -1916,6 +1940,19 @@
     } else {
       labelIndexes = [0, Math.floor((dates.length - 1) / 2), dates.length - 1];
     }
+    (spec.reconstructed || []).forEach(function (flag, i) {
+      if (!flag) return;
+      var mark = el("circle", {
+        cx: x(i).toFixed(1),
+        cy: String(h - 16),
+        r: "2.2",
+        fill: "#f0d48a"
+      });
+      var tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = "Reconstructed";
+      mark.appendChild(tip);
+      svg.appendChild(mark);
+    });
     labelIndexes.forEach(function (i) {
       if (!many && dates.length > 1 && i === Math.floor((dates.length - 1) / 2) && dates.length < 3) return;
       var label = el("text", {
@@ -1938,10 +1975,13 @@
     return svg;
   }
 
-  function chartSpec(block, mode) {
+  function chartSpec(block, mode, marks) {
     return {
       title: mode === "hits" ? "Cumulative hits" : "Hit rate",
       dates: block.dates || [],
+      reconstructed: (block.dates || []).map(function (iso) {
+        return !!(marks && marks[iso]);
+      }),
       mode: mode,
       series: (block.series || []).map(function (item, index) {
         return {
@@ -2005,17 +2045,34 @@
     return h("div", {class: "legend"}, bits);
   }
 
-  function chartPair(block) {
+  function chartPair(block, marks) {
     return h("div", {class: "chart-grid"},
       h("div", null,
         h("p", {class: "muted small chart-title", text: "Hit rate"}),
-        h("div", {class: "chart-wrap"}, lineChart(chartSpec(block, "rate")))
+        h("div", {class: "chart-wrap"}, lineChart(chartSpec(block, "rate", marks)))
       ),
       h("div", null,
         h("p", {class: "muted small chart-title", text: "Cumulative hits"}),
-        h("div", {class: "chart-wrap"}, lineChart(chartSpec(block, "hits")))
+        h("div", {class: "chart-wrap"}, lineChart(chartSpec(block, "hits", marks)))
       )
     );
+  }
+
+  function reconstructedMarks(season) {
+    var marks = {};
+    function take(days) {
+      (days || []).forEach(function (day) {
+        if (day && day.reconstructed && day.date) marks[day.date] = true;
+      });
+    }
+    take(season && season.days);
+    var byMethod = season && season.by_method;
+    if (byMethod) {
+      Object.keys(byMethod).forEach(function (id) {
+        take(byMethod[id] && byMethod[id].days);
+      });
+    }
+    return marks;
   }
 
   function readStored(key) {
@@ -2444,7 +2501,7 @@
           var block = pickOf(group, selectedAll.id) || {};
           var hit = hitOf(group, selectedAll.id);
           bodyAll.appendChild(h("tr", null,
-            h("td", {text: pretty(day.date)}),
+            dateCell(day),
             h("td", {text: String(group.id)}),
             h("td", {class: "player-name", text: block.name || "\u2014"}),
             h("td", {text: formatBlock(block, selectedAll)}),
@@ -2499,7 +2556,9 @@
         h("div", {class: "stat"}, h("b", {text: pct(sum.random_baseline)}), h("span", {text: "Random baseline"}))
       ),
       season.charts && season.charts.overall
-        ? h("div", null, chartLegend(withAggregate(season.charts.overall, null)), chartPair(withAggregate(season.charts.overall, null)))
+        ? h("div", null,
+            chartLegend(withAggregate(season.charts.overall, null)),
+            chartPair(withAggregate(season.charts.overall, null), reconstructedMarks(season)))
         : h("p", {class: "muted", text: "Year-to-date charts appear after the season file is rebuilt."})
     ));
     if (season.charts && season.charts.groups && season.charts.groups.length) {
@@ -2510,7 +2569,7 @@
           h("h2", {text: group.label || ("Pick " + group.id)}),
           h("p", {class: "muted small", text: "Each method on this pick, with this pick's random baseline."}),
           chartLegend(chart),
-          chartPair(chart)
+          chartPair(chart, reconstructedMarks(season))
         ));
       });
     }
@@ -2532,7 +2591,7 @@
           var block = pickOf(group, selected.id) || {};
           var hit = hitOf(group, selected.id);
           body.appendChild(h("tr", null,
-            h("td", {text: pretty(day.date)}),
+            dateCell(day),
             h("td", {text: String(group.id)}),
             h("td", {class: "player-name", text: block.name || "\u2014"}),
             h("td", {text: formatBlock(block, selected)}),
@@ -2552,7 +2611,7 @@
             ? (typeof group.goals_per_game === "number" ? group.goals_per_game.toFixed(2) : "\u2014")
             : pct(group.probability);
           body.appendChild(h("tr", null,
-            h("td", {text: pretty(day.date)}),
+            dateCell(day),
             h("td", {text: String(group.id)}),
             h("td", {class: "player-name", text: group.pick || "\u2014"}),
             h("td", {text: value}),
