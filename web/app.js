@@ -1481,7 +1481,7 @@
 
   function submitRule() {
     return {
-      minChance: 0.73,
+      minChance: 0.70,
       cutoffHour: 17,
       cutoffMinute: 0,
       timeZone: "America/Toronto",
@@ -1614,12 +1614,31 @@
     };
   }
 
-  function renderSubmitBanner(day, now) {
+  function renderSubmitBanner(day, now, attached) {
     var advice = submitAdvice(day, now);
     if (!advice) return null;
-    return h("section", {class: "card submit-banner " + advice.tone, role: "status"},
+    return h("section", {class: "submit-banner " + advice.tone + (attached ? " attached" : " card"), role: "status"},
       h("p", {class: "submit-line", text: advice.text}),
       h("p", {class: "muted small", text: advice.footnote})
+    );
+  }
+
+  function renderTodayPicks(day) {
+    var selected = methodMeta(day);
+    var row = h("div", {class: "today-picks-row"});
+    (day.groups || []).forEach(function (group) {
+      var pick = pickOf(group, selected.id) || {};
+      row.appendChild(h("div", {class: "today-pick"},
+        h("div", {class: "lab", text: "Group " + group.id}),
+        h("div", {class: "name", text: pick.name || "No pick"}),
+        h("div", {class: "meta", text: teamsAndTime(pick, group, day)}),
+        h("div", {class: "pct", text: formatBlock(pick, selected)})
+      ));
+    });
+    return h("section", {class: "card today-picks"},
+      h("h2", {text: (selected.label || "Today") + " picks"}),
+      row,
+      renderSubmitBanner(day, null, true)
     );
   }
 
@@ -1633,6 +1652,7 @@
         h("p", {class: "muted", text: "today.json has not been published. The daily job writes it before the games."})));
       return;
     }
+    view.appendChild(renderTodayPicks(day));
     view.appendChild(renderDayHead(day));
     var skippedToday = renderSkipped(day);
     if (skippedToday) view.appendChild(skippedToday);
@@ -1640,8 +1660,6 @@
     if (changesToday) view.appendChild(changesToday);
     var morningToday = renderMorningBanner(day);
     if (morningToday) view.appendChild(morningToday);
-    var submitToday = renderSubmitBanner(day);
-    if (submitToday) view.appendChild(submitToday);
     view.appendChild(renderSummary(day, "today"));
     view.appendChild(h("div", {style: "height:12px"}));
     view.appendChild(renderGroups(day, "today"));
@@ -2478,6 +2496,32 @@
     return copy;
   }
 
+  function statRate(published, computed) {
+    return typeof published === "number" ? published : computed;
+  }
+
+  function mixedTrackerRates(methodId, season) {
+    var publishedRandom = season && season.summary && typeof season.summary.random_baseline === "number"
+      ? season.summary.random_baseline : null;
+    if (methodId !== "aggregate" && methodId !== "custom") {
+      return {top3_rate: null, random_baseline: publishedRandom};
+    }
+    var rules = mixApi();
+    if (!rules || !(state.catalog || []).length) {
+      return {top3_rate: null, random_baseline: publishedRandom};
+    }
+    var methods = knownMethods();
+    var config = methodId === "aggregate" ? rules.aggregateMix(methods) : (state.mix || rules.defaultMix());
+    var days = state.catalog.filter(function (day) {
+      return !(state.seasonId && state.seasonId !== "all" && day.season && day.season !== state.seasonId);
+    });
+    var rates = rules.mixRates(days, config, methods);
+    return {
+      top3_rate: rates.top3_rate,
+      random_baseline: publishedRandom != null ? publishedRandom : rates.random_baseline
+    };
+  }
+
   function renderSeason() {
     var view = document.getElementById("view-season");
     clear(view);
@@ -2530,6 +2574,7 @@
     var block = season.by_method && season.by_method[selected.id];
     var viewSeason = block || (selected.id === "model" || selected.id === season.method ? season : {summary: {}, days: []});
     var sum = viewSeason.summary || {};
+    var mixedRates = mixedTrackerRates(selected.id, season);
     var compare = null;
     function trackerRow(method) {
       var computed = metricsFor(method.id, state.phaseFilter || "combined");
@@ -2552,8 +2597,8 @@
       compare,
       h("p", {class: "record-line"}, recordLine(trackerRow(selected))),
       h("div", {class: "stats"},
-        h("div", {class: "stat"}, h("b", {text: pct(sum.top3_rate)}), h("span", {text: "Top 3 scored"})),
-        h("div", {class: "stat"}, h("b", {text: pct(sum.random_baseline)}), h("span", {text: "Random baseline"}))
+        h("div", {class: "stat"}, h("b", {text: pct(statRate(sum.top3_rate, mixedRates.top3_rate))}), h("span", {text: "Top 3 scored"})),
+        h("div", {class: "stat"}, h("b", {text: pct(statRate(sum.random_baseline, mixedRates.random_baseline))}), h("span", {text: "Random baseline"}))
       ),
       season.charts && season.charts.overall
         ? h("div", null,

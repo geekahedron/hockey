@@ -355,6 +355,38 @@
     return mix;
   }
 
+  function mixRates(days, config, methods) {
+    var mix = copyMix(config);
+    var topHits = 0;
+    var slots = 0;
+    var randomSum = 0;
+    var randomN = 0;
+    (days || []).forEach(function (day) {
+      (day.groups || []).forEach(function (group) {
+        if (!group || group.status !== "graded") return;
+        if (typeof group.random === "number") {
+          randomSum += group.random;
+          randomN += 1;
+        }
+        if (mix.preset) return;
+        var chosen = methodForList(mix, group.id, day && day.date, phaseOf(day));
+        var block = blockForMethod(group, chosen);
+        if (!block && chosen === "model" && typeof group.top3_hits === "number") {
+          block = {top3_hits: group.top3_hits};
+        }
+        if (!block || typeof block.top3_hits !== "number") return;
+        var n = Math.min(3, (group.players || []).length);
+        if (!n) return;
+        topHits += block.top3_hits;
+        slots += n;
+      });
+    });
+    return {
+      top3_rate: slots ? topHits / slots : null,
+      random_baseline: randomN ? randomSum / randomN : null
+    };
+  }
+
   function mixFor(methodId, config, methods) {
     if (methodId === "aggregate") return aggregateMix(methods);
     return config;
@@ -480,6 +512,7 @@
     CUSTOM: CUSTOM,
     AGGREGATE: AGGREGATE,
     aggregateMix: aggregateMix,
+    mixRates: mixRates,
     PHASES: PHASES,
     defaultMix: defaultMix,
     copyMix: copyMix,

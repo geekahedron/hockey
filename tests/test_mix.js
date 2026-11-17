@@ -168,4 +168,27 @@ assertEqual(M.customPick(aggDay, aggDay.groups[0], M.aggregateMix(published), pu
 assertEqual(M.customPick(aggDay, aggDay.groups[1], M.aggregateMix(published), published, "morning", false, null).name, "Model 2", "list 2 uses the logistic pick");
 assertEqual(M.computeMetrics([aggDay], "aggregate", M.defaultMix(), published, "combined", "morning").hits, 1, "aggregate records do not follow the custom mix");
 
+function gradedGroup(id, modelTop, rateTop, random) {
+  return {
+    id: id,
+    status: "graded",
+    random: random,
+    players: [{pid: 1}, {pid: 2}, {pid: 3}, {pid: 4}],
+    method_picks: {
+      model: {pids: [1], top3_hits: modelTop, probability: 0.2, hit: 0},
+      ddh_style: {pids: [2], top3_hits: rateTop, probability: 0.4, hit: 1}
+    }
+  };
+}
+const rateDays = [{
+  date: "2026-11-02",
+  phase: "regular",
+  groups: [gradedGroup(1, 1, 3, 0.5), gradedGroup(2, 2, 0, 0.5), gradedGroup(3, 0, 1, 0.5)]
+}];
+const aggRates = M.mixRates(rateDays, M.aggregateMix(published), published);
+assertEqual(aggRates.top3_rate, 5 / 9, "list 1 uses the scoring-rate top 3");
+assertEqual(aggRates.random_baseline, 0.5, "random baseline ignores the method");
+const modelRates = M.mixRates(rateDays, M.defaultMix(), published);
+assertEqual(modelRates.top3_rate, 3 / 9, "all-model top 3 is the logistic top 3");
+
 console.log("mix ok");

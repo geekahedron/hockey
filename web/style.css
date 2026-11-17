@@ -61,6 +61,13 @@ td.recon{color:var(--muted)}
 .recon-mark{color:#f0d48a}
 button.ghost.recon{border-style:dashed}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.today-picks h2{font-size:20px;margin:0 0 10px}
+.today-picks-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.today-pick .lab{color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.today-pick .name{font-size:22px;font-weight:700;line-height:1.2;margin-top:2px}
+.today-pick .meta{color:var(--muted);font-size:13px;margin-top:4px}
+.today-pick .pct{color:var(--orange);font-weight:700;font-size:18px;margin-top:4px}
+.submit-banner.attached{margin:14px 0 0;padding:12px 0 0;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent}
 .mix-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
 .mix-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px}
 .mix-row label,.mix-grid label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:13px}
@@ -213,7 +220,7 @@ button.dialog-close:hover{background:rgba(255,140,26,.12);color:var(--ink)}
 .input-table td{padding:4px 8px 4px 0;border-bottom:1px solid var(--line);vertical-align:top}
 .input-table td.value{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 @media (max-width:900px){
-  .summary,.groups,.chart-grid,.mix-grid{grid-template-columns:1fr}
+  .summary,.groups,.chart-grid,.mix-grid,.today-picks-row{grid-template-columns:1fr}
   .controls{margin-left:0}
   .leaders > div{grid-template-columns:minmax(0,1fr) auto}
 }
