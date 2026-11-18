@@ -68,6 +68,9 @@ button.ghost.recon{border-style:dashed}
 .today-pick .meta{color:var(--muted);font-size:13px;margin-top:4px}
 .today-pick .pct{color:var(--orange);font-weight:700;font-size:18px;margin-top:4px}
 .submit-banner.attached{margin:14px 0 0;padding:12px 0 0;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent}
+.daily-picks h2{font-size:16px;margin:0 0 8px}
+.daily-picks .name{font-size:16px}
+.daily-note{color:var(--muted);font-size:13px;margin:8px 0 0}
 .mix-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
 .mix-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px}
 .mix-row label,.mix-grid label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:13px}
