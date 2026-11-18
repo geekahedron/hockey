@@ -301,20 +301,50 @@
     }
   }
 
-  function startIso(source, group, day) {
-    if (!source) return "";
-    if (source.start || source.startTimeUTC) return source.start || source.startTimeUTC;
-    var pid = source.pid != null ? source.pid : (source.pids && source.pids.length ? source.pids[0] : null);
-    var player = null;
-    if (pid != null && group && group.players) {
-      var i;
-      for (i = 0; i < group.players.length; i++) {
-        if (group.players[i].pid === pid) {
-          player = group.players[i];
-          break;
+  function pickPids(source) {
+    var pids = [];
+    if (!source) return pids;
+    if (source.pid != null) pids.push(source.pid);
+    (source.pids || []).forEach(function (pid) {
+      if (pids.indexOf(pid) === -1) pids.push(pid);
+    });
+    return pids;
+  }
+
+  function playerForPick(source, group, day) {
+    var pids = pickPids(source);
+    if (!pids.length) return null;
+    var lists = [];
+    if (group && group.players) lists.push(group.players);
+    (day && day.groups || []).forEach(function (item) {
+      if (item !== group && item.players) lists.push(item.players);
+    });
+    var found = null;
+    var p, g, i, player;
+    for (p = 0; p < pids.length; p++) {
+      for (g = 0; g < lists.length; g++) {
+        for (i = 0; i < lists[g].length; i++) {
+          if (lists[g][i].pid !== pids[p]) continue;
+          player = lists[g][i];
+          if (!found) found = player;
+          if (player.team && player.opp) return player;
         }
       }
     }
+    return found;
+  }
+
+  function gameSource(source, group, day) {
+    if (source && source.team && source.opp) return source;
+    var player = playerForPick(source, group, day);
+    if (player && player.team && player.opp) return player;
+    return source;
+  }
+
+  function startIso(source, group, day) {
+    if (!source) return "";
+    if (source.start || source.startTimeUTC) return source.start || source.startTimeUTC;
+    var player = playerForPick(source, group, day);
     if (player && (player.start || player.startTimeUTC)) return player.start || player.startTimeUTC;
     var team = source.team || (player && player.team) || "";
     var games = day && day.games;
@@ -325,10 +355,11 @@
   }
 
   function teamsAndTime(source, group, day) {
-    if (!source || !source.team || !source.opp) return "";
-    var where = source.home ? "vs" : "@";
-    var line = source.team + " " + where + " " + source.opp;
-    var time = torontoGameTime(startIso(source, group, day));
+    var row = gameSource(source, group, day);
+    if (!row || !row.team || !row.opp) return "";
+    var where = row.home ? "vs" : "@";
+    var line = row.team + " " + where + " " + row.opp;
+    var time = torontoGameTime(startIso(row, group, day));
     if (time) line += " \u00b7 " + time;
     return line;
   }
@@ -1716,12 +1747,22 @@
     return false;
   }
 
-  function pickRow(picks, selected) {
+  function groupById(day, id) {
+    var found = null;
+    (day && day.groups || []).forEach(function (group) {
+      if (group.id === id) found = group;
+    });
+    return found;
+  }
+
+  function pickRow(picks, selected, day) {
     var row = h("div", {class: "today-picks-row"});
     (picks || []).forEach(function (pick) {
+      var group = groupById(day, pick.groupId);
       row.appendChild(h("div", {class: "today-pick"},
         h("div", {class: "lab", text: "Group " + pick.groupId}),
         h("div", {class: "name", text: pick.name || "No pick"}),
+        h("div", {class: "meta", text: teamsAndTime(pick, group, day)}),
         h("div", {class: "pct", text: formatBlock(pick, selected)})
       ));
     });
@@ -1741,14 +1782,14 @@
       return h("section", {class: "card today-picks"},
         h("h2", {text: "Daily picks"}),
         h("p", {class: "daily-note", text: "All games have started."}),
-        pickRow(plan ? plan.picks : [], selected),
+        pickRow(plan ? plan.picks : [], selected, day),
         h("p", {class: "daily-note", text: lockText(plan)}),
         renderSubmitBanner(day, now, true)
       );
     }
     var box = h("section", {class: "card today-picks"},
       h("h2", {text: "Current suggestions"}),
-      pickRow(suggestions, selected),
+      pickRow(suggestions, selected, day),
       renderSubmitBanner(day, now, true)
     );
     if (plan && picksDiffer(suggestions, plan.picks)) {
@@ -1756,7 +1797,7 @@
         box,
         h("section", {class: "card daily-picks"},
           h("h2", {text: "Daily picks"}),
-          pickRow(plan.picks, selected),
+          pickRow(plan.picks, selected, day),
           h("p", {class: "daily-note", text: lockText(plan)})
         )
       );
@@ -1770,7 +1811,7 @@
     if (!plan) return null;
     return h("section", {class: "card daily-picks"},
       h("h2", {text: "Daily picks"}),
-      pickRow(plan.picks, selected),
+      pickRow(plan.picks, selected, day),
       h("p", {class: "daily-note", text: lockText(plan)})
     );
   }
