@@ -23,7 +23,8 @@ function grab(name) {
 
 const context = {};
 vm.runInNewContext(
-  [grab("torontoGameTime"), grab("startIso"), grab("teamsAndTime"), grab("matchup"),
+  [grab("torontoGameTime"), grab("pickPids"), grab("playerForPick"), grab("gameSource"),
+    grab("startIso"), grab("teamsAndTime"), grab("matchup"),
     "this.torontoGameTime = torontoGameTime;",
     "this.teamsAndTime = teamsAndTime;",
     "this.matchup = matchup;"

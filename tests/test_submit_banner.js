@@ -22,7 +22,7 @@ function grab(name) {
 }
 
 const names = [
-  "pct", "pOf", "torontoClock", "startIso", "submitRule", "availableAt",
+  "pct", "pOf", "torontoClock", "pickPids", "playerForPick", "startIso", "submitRule", "availableAt",
   "torontoMinutes", "playoffSlate", "listSize", "modelTop", "chosenTop", "pickStartsSoon",
   "slateChance", "allGamesStarted", "submitAdvice"
 ];
