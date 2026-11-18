@@ -405,10 +405,248 @@
     return chooseMethod(view, view.players || [], methodId, methods);
   }
 
+  var SUBMIT_AT = 0.70;
+
+  function configFor(methodId, config, methods) {
+    if (methodId === "aggregate") return aggregateMix(methods);
+    if (methodId === "custom") return copyMix(config);
+    var mix = defaultMix();
+    ["1", "2", "3"].forEach(function (id) { mix.lists[id] = methodId; });
+    return mix;
+  }
+
+  function torontoMinutes(ms) {
+    if (ms == null || isNaN(ms)) return null;
+    try {
+      var text = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Toronto",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23"
+      }).format(new Date(ms));
+      var match = String(text).match(/(\d{2}):(\d{2})/);
+      if (!match) return null;
+      return Number(match[1]) * 60 + Number(match[2]);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function onListAt(player, whenMs) {
+    if (!player) return false;
+    if (whenMs == null || isNaN(whenMs)) {
+      if (player.unavailable_reason === "removed") return false;
+      if (player.available === false && !player.game_started && player.unavailable_reason !== "game_started") return false;
+      return true;
+    }
+    if (player.first_seen) {
+      var seen = Date.parse(player.first_seen);
+      if (!isNaN(seen) && whenMs < seen) return false;
+    }
+    if (player.removed_at) {
+      var left = Date.parse(player.removed_at);
+      if (!isNaN(left) && whenMs > left) return false;
+    } else if (player.unavailable_reason === "removed") {
+      return false;
+    }
+    if (player.start) {
+      var start = Date.parse(player.start);
+      if (!isNaN(start) && whenMs >= start) return false;
+    }
+    return true;
+  }
+
+  function methodMetaOf(methods, methodId) {
+    var found = null;
+    (methods || []).forEach(function (method) {
+      if (method && method.id === methodId) found = method;
+    });
+    return found;
+  }
+
+  function methodValue(player, methodId, methods) {
+    var method = methodMetaOf(methods, methodId);
+    if (method && method.kind === "rank") {
+      var rank = player.rank && player.rank[methodId];
+      return typeof rank === "number" ? rank : null;
+    }
+    return probabilityOf(player, methodId);
+  }
+
+  function chooseGroup(day, group, config, methods, whenMs) {
+    var methodId = methodForList(config, group && group.id, day && day.date, phaseOf(day));
+    var method = methodMetaOf(methods, methodId);
+    var best = null;
+    var tied = [];
+    (group.players || []).forEach(function (player) {
+      if (!onListAt(player, whenMs)) return;
+      var value = methodValue(player, methodId, methods);
+      if (value == null) return;
+      if (best == null || (method && method.kind === "rank" ? value < best : value > best)) {
+        best = value;
+        tied = [player];
+      } else if (value === best) {
+        tied.push(player);
+      }
+    });
+    tied.sort(function (a, b) {
+      var an = a.name || "";
+      var bn = b.name || "";
+      if (an !== bn) return an < bn ? -1 : 1;
+      return (a.pid || 0) - (b.pid || 0);
+    });
+    var pids = tied.map(function (player) { return player.pid; });
+    var hit = null;
+    if (tied.length && tied.every(function (player) { return typeof player.scored === "number"; })) {
+      hit = tied.reduce(function (sum, player) { return sum + player.scored; }, 0) / tied.length;
+    }
+    var start = null;
+    tied.forEach(function (player) {
+      if (!player.start) return;
+      var ms = Date.parse(player.start);
+      if (!isNaN(ms) && (start == null || ms < start)) start = ms;
+    });
+    var probability = null;
+    if (tied.length && !(method && method.kind === "rank")) probability = probabilityOf(tied[0], methodId);
+    return {
+      groupId: group.id,
+      pids: pids,
+      name: tied.map(function (player) { return player.name || ""; }).join(" / "),
+      probability: probability,
+      hit: hit,
+      start: start,
+      methodId: methodId
+    };
+  }
+
+  function chanceOf(picks) {
+    if (!picks || !picks.length || picks.some(function (pick) { return typeof pick.probability !== "number"; })) return null;
+    var miss = 1;
+    picks.forEach(function (pick) { miss *= (1 - pick.probability); });
+    return 1 - miss;
+  }
+
+  function selectionsAt(day, config, methods, whenMs) {
+    var picks = [];
+    (day.groups || []).forEach(function (group) {
+      picks.push(chooseGroup(day, group, config, methods, whenMs));
+    });
+    return {picks: picks, chance: chanceOf(picks)};
+  }
+
+  function earliestStart(picks) {
+    var best = null;
+    (picks || []).forEach(function (pick) {
+      if (pick.start == null) return;
+      if (best == null || pick.start < best) best = pick.start;
+    });
+    return best;
+  }
+
+  function checkTimes(day) {
+    var times = [];
+    function add(iso) {
+      if (!iso) return;
+      var ms = Date.parse(iso);
+      if (!isNaN(ms)) times.push(ms);
+    }
+    add(day && day.morning && day.morning.at);
+    add(day && day.generated_at);
+    (day && day.snapshots || []).forEach(function (snap) { add(snap.time); });
+    (day && day.groups || []).forEach(function (group) {
+      (group.players || []).forEach(function (player) {
+        add(player.first_seen);
+        if (!player.removed_at) return;
+        var left = Date.parse(player.removed_at);
+        if (!isNaN(left)) times.push(left + 1);
+      });
+    });
+    times.sort(function (a, b) { return a - b; });
+    var uniq = [];
+    times.forEach(function (ms) {
+      if (!uniq.length || uniq[uniq.length - 1] !== ms) uniq.push(ms);
+    });
+    if (!uniq.length) uniq.push(null);
+    return uniq;
+  }
+
+  function dailyPlan(day, config, methods, nowMs) {
+    var checks = checkTimes(day || {});
+    var playoffs = phaseOf(day) === "playoffs";
+    var provisional = null;
+    var locked = false;
+    var lockAt = null;
+    var reason = null;
+    var sawFive = false;
+    var lastCheck = null;
+    checks.forEach(function (ms) {
+      if (locked) return;
+      if (provisional) {
+        var start = earliestStart(provisional.picks);
+        if (start != null && (ms == null || start <= ms) && (nowMs == null || start <= nowMs)) {
+          locked = true;
+          lockAt = start;
+          reason = "game";
+          return;
+        }
+      }
+      if (nowMs != null && ms != null && ms > nowMs) return;
+      var next = selectionsAt(day, config, methods, ms);
+      var chance = next.chance;
+      lastCheck = ms;
+      if (!provisional) {
+        provisional = next;
+        if (playoffs || (chance != null && chance >= SUBMIT_AT)) {
+          locked = true;
+          lockAt = ms;
+          reason = playoffs ? "playoffs" : "threshold";
+        }
+        return;
+      }
+      if (chance != null && chance >= SUBMIT_AT) {
+        provisional = next;
+        locked = true;
+        lockAt = ms;
+        reason = "threshold";
+        return;
+      }
+      var mins = torontoMinutes(ms);
+      if (mins != null && mins >= 17 * 60 && !sawFive) {
+        provisional = next;
+        sawFive = true;
+      }
+    });
+    if (!locked && provisional) {
+      var start = earliestStart(provisional.picks);
+      if (start != null && (nowMs == null || nowMs >= start)) {
+        locked = true;
+        lockAt = start;
+        reason = "game";
+      } else if (nowMs == null && day && day.status === "graded") {
+        locked = true;
+        lockAt = lastCheck;
+        reason = "game";
+      }
+    }
+    return {
+      picks: provisional ? provisional.picks : [],
+      locked: locked,
+      at: lockAt,
+      reason: reason,
+      chance: provisional ? provisional.chance : null
+    };
+  }
+
   function groupHit(day, group, methodId, config, methods, mode, pending, now) {
+    var plan = dailyPlan(day, configFor(methodId, config, methods), methods, null);
+    var pick = null;
+    (plan.picks || []).forEach(function (item) {
+      if (item.groupId === (group && group.id)) pick = item;
+    });
+    if (pick && pick.pids && pick.pids.length) return pick.hit;
     if (methodId === "custom" || methodId === "aggregate") {
-      var pick = customPick(day, group, mixFor(methodId, config, methods), methods, mode, pending, now);
-      return pick.hit == null ? null : pick.hit;
+      var fresh = customPick(day, group, mixFor(methodId, config, methods), methods, mode, pending, now);
+      return fresh.hit == null ? null : fresh.hit;
     }
     var view = viewOf(day, group, mode);
     if (view.status && view.status !== "graded" && view.hit == null) {
@@ -512,8 +750,12 @@
   root.HockeyMix = {
     CUSTOM: CUSTOM,
     AGGREGATE: AGGREGATE,
+    SUBMIT_AT: SUBMIT_AT,
     aggregateMix: aggregateMix,
     mixRates: mixRates,
+    configFor: configFor,
+    selectionsAt: selectionsAt,
+    dailyPlan: dailyPlan,
     PHASES: PHASES,
     defaultMix: defaultMix,
     copyMix: copyMix,

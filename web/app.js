@@ -1584,6 +1584,54 @@
     if (!day || !(day.groups || []).length) return null;
     var rule = submitRule();
     var clock = typeof now === "number" ? now : Date.now();
+    if (typeof mixApi === "function" && mixApi() && mixApi().dailyPlan && typeof state !== "undefined" && state) {
+      var rules = mixApi();
+      var methodId = state.method || "aggregate";
+      var plan = rules.dailyPlan(day, rules.configFor(methodId, state.mix, knownMethods()), knownMethods(), clock);
+      var when = "";
+      if (plan.at != null && !isNaN(plan.at)) when = " at " + torontoGameTime(new Date(plan.at).toISOString());
+      if (allGamesStarted(day, clock)) {
+        return {text: "All games have started. The daily picks are locked.", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      if (plan.locked && plan.reason === "threshold") {
+        return {
+          text: "Daily picks locked" + when + " \u2014 submit threshold met (" + pct(plan.chance) + " chance of at least one hit)",
+          tone: "strong",
+          chance: plan.chance,
+          footnote: rule.footnote
+        };
+      }
+      if (plan.locked && plan.reason === "playoffs") {
+        return {text: "Daily picks locked" + when + " \u2014 playoffs lock at the first list", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      if (plan.locked) {
+        return {text: "Daily picks locked" + when + " \u2014 first selected game started", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      var open = plan.chance;
+      var mins = torontoMinutes(clock);
+      if (open != null && open >= rule.minChance) {
+        return {
+          text: "Strong slate: submit these three now (" + pct(open) + " chance of at least one hit)",
+          tone: "strong",
+          chance: open,
+          footnote: rule.footnote
+        };
+      }
+      if (mins != null && mins >= rule.cutoffHour * 60 + rule.cutoffMinute) {
+        return {
+          text: "Low-confidence slate (" + pct(open) + " chance of at least one hit). Daily picks lock when the first selected game starts.",
+          tone: "low",
+          chance: open,
+          footnote: rule.footnote
+        };
+      }
+      return {
+        text: "Low-confidence slate (" + pct(open) + " chance of at least one hit). Later lists have scored slightly better on average; check back after 5 PM to submit all three.",
+        tone: "low",
+        chance: open,
+        footnote: rule.footnote
+      };
+    }
     var soon = false;
     var thin = false;
     (day.groups || []).forEach(function (group) {
@@ -1623,22 +1671,107 @@
     );
   }
 
-  function renderTodayPicks(day) {
-    var selected = methodMeta(day);
-    var row = h("div", {class: "today-picks-row"});
+  function planFor(day, methodId, now) {
+    var rules = mixApi();
+    if (!rules || !rules.dailyPlan) return null;
+    var config = rules.configFor(methodId, state.mix, knownMethods());
+    return rules.dailyPlan(day, config, knownMethods(), now);
+  }
+
+  function allGamesStarted(day, now) {
+    var starts = [];
     (day.groups || []).forEach(function (group) {
-      var pick = pickOf(group, selected.id) || {};
+      (group.players || []).forEach(function (player) {
+        if (!player.start) return;
+        var ms = Date.parse(player.start);
+        if (!isNaN(ms)) starts.push(ms);
+      });
+    });
+    if (!starts.length) return !!(day && day.status === "graded");
+    return starts.every(function (ms) { return ms <= now; });
+  }
+
+  function formatWhen(ms) {
+    if (ms == null || isNaN(ms)) return "";
+    return torontoGameTime(new Date(ms).toISOString());
+  }
+
+  function lockText(plan) {
+    if (!plan) return "";
+    var when = formatWhen(plan.at);
+    var clock = when ? " at " + when : "";
+    if (!plan.locked) return "Not locked yet. They can still change at the 5:00 PM list, or when the first selected game starts.";
+    if (plan.reason === "threshold") return "Locked" + clock + " \u2014 submit threshold met";
+    if (plan.reason === "playoffs") return "Locked" + clock + " \u2014 playoffs lock at the first list";
+    return "Locked" + clock + " \u2014 first selected game started";
+  }
+
+  function picksDiffer(left, right) {
+    if (!left || !right || left.length !== right.length) return true;
+    for (var i = 0; i < left.length; i++) {
+      var a = (left[i].pids || []).slice().sort().join(",");
+      var b = (right[i].pids || []).slice().sort().join(",");
+      if (left[i].groupId !== right[i].groupId || a !== b) return true;
+    }
+    return false;
+  }
+
+  function pickRow(picks, selected) {
+    var row = h("div", {class: "today-picks-row"});
+    (picks || []).forEach(function (pick) {
       row.appendChild(h("div", {class: "today-pick"},
-        h("div", {class: "lab", text: "Group " + group.id}),
+        h("div", {class: "lab", text: "Group " + pick.groupId}),
         h("div", {class: "name", text: pick.name || "No pick"}),
-        h("div", {class: "meta", text: teamsAndTime(pick, group, day)}),
         h("div", {class: "pct", text: formatBlock(pick, selected)})
       ));
     });
-    return h("section", {class: "card today-picks"},
-      h("h2", {text: (selected.label || "Today") + " picks"}),
-      row,
-      renderSubmitBanner(day, null, true)
+    return row;
+  }
+
+  function renderTodayPicks(day) {
+    var now = Date.now();
+    var selected = methodMeta(day);
+    var plan = planFor(day, selected.id, now);
+    var rules = mixApi();
+    var suggestions = rules && rules.selectionsAt
+      ? rules.selectionsAt(day, rules.configFor(selected.id, state.mix, knownMethods()), knownMethods(), now).picks
+      : [];
+    var done = allGamesStarted(day, now);
+    if (done) {
+      return h("section", {class: "card today-picks"},
+        h("h2", {text: "Daily picks"}),
+        h("p", {class: "daily-note", text: "All games have started."}),
+        pickRow(plan ? plan.picks : [], selected),
+        h("p", {class: "daily-note", text: lockText(plan)}),
+        renderSubmitBanner(day, now, true)
+      );
+    }
+    var box = h("section", {class: "card today-picks"},
+      h("h2", {text: "Current suggestions"}),
+      pickRow(suggestions, selected),
+      renderSubmitBanner(day, now, true)
+    );
+    if (plan && picksDiffer(suggestions, plan.picks)) {
+      return h("div", null,
+        box,
+        h("section", {class: "card daily-picks"},
+          h("h2", {text: "Daily picks"}),
+          pickRow(plan.picks, selected),
+          h("p", {class: "daily-note", text: lockText(plan)})
+        )
+      );
+    }
+    return box;
+  }
+
+  function renderPastPicks(day) {
+    var selected = methodMeta(day);
+    var plan = planFor(day, selected.id, null);
+    if (!plan) return null;
+    return h("section", {class: "card daily-picks"},
+      h("h2", {text: "Daily picks"}),
+      pickRow(plan.picks, selected),
+      h("p", {class: "daily-note", text: lockText(plan)})
     );
   }
 
@@ -1772,6 +1905,8 @@
     }
     var day = state.past;
     view.appendChild(renderDayHead(day));
+    var pastPicks = renderPastPicks(day);
+    if (pastPicks) view.appendChild(pastPicks);
     var skippedPast = renderSkipped(day);
     if (skippedPast) view.appendChild(skippedPast);
     var changesPast = renderListChanges(day);
@@ -2485,6 +2620,73 @@
     return {id: "aggregate", label: "Aggregate", kind: "probability", hits: hits, hit_rate: rates};
   }
 
+  function gradeChart(block, groupId) {
+    var rules = mixApi();
+    if (!block || !block.series || !rules || !(state.catalog || []).length) return block;
+    var methods = knownMethods();
+    var mode = state.evalMode || "morning";
+    var byDate = {};
+    state.catalog.forEach(function (day) {
+      if (day && day.date && !byDate[day.date]) byDate[day.date] = day;
+    });
+    function valuesFor(methodId) {
+      var config = rules.configFor(methodId, state.mix, methods);
+      var total = 0;
+      var count = 0;
+      var started = false;
+      var hits = [];
+      var rates = [];
+      (block.dates || []).forEach(function (date) {
+        var day = byDate[date];
+        var amount = null;
+        var n = 0;
+        if (day && groupId == null) {
+          var record = rules.dayRecord(day, methodId, config, methods, mode);
+          if (record) {
+            amount = record.hits;
+            n = record.picks;
+          }
+        } else if (day) {
+          var group = null;
+          (day.groups || []).forEach(function (item) {
+            if (item && item.id === groupId) group = item;
+          });
+          if (group) {
+            var hit = rules.groupHit(day, group, methodId, config, methods, mode, false, null);
+            if (hit != null) {
+              amount = hit;
+              n = 1;
+            }
+          }
+        }
+        if (amount != null && n) {
+          started = true;
+          total += amount;
+          count += n;
+        }
+        if (!started || !count) {
+          hits.push(null);
+          rates.push(null);
+        } else {
+          hits.push(Math.round(total * 1000) / 1000);
+          rates.push(Math.round((total / count) * 10000) / 10000);
+        }
+      });
+      return {hits: hits, hit_rate: rates};
+    }
+    var copy = {};
+    Object.keys(block).forEach(function (key) { copy[key] = block[key]; });
+    copy.series = block.series.map(function (item) {
+      var graded = valuesFor(item.id);
+      var next = {};
+      Object.keys(item).forEach(function (key) { next[key] = item[key]; });
+      next.hits = graded.hits;
+      next.hit_rate = graded.hit_rate;
+      return next;
+    });
+    return copy;
+  }
+
   function withAggregate(block, groupId) {
     if (!block || !block.series) return block;
     if (block.series.some(function (item) { return item.id === "aggregate"; })) return block;
@@ -2602,14 +2804,14 @@
       ),
       season.charts && season.charts.overall
         ? h("div", null,
-            chartLegend(withAggregate(season.charts.overall, null)),
-            chartPair(withAggregate(season.charts.overall, null), reconstructedMarks(season)))
+            chartLegend(gradeChart(withAggregate(season.charts.overall, null), null)),
+            chartPair(gradeChart(withAggregate(season.charts.overall, null), null), reconstructedMarks(season)))
         : h("p", {class: "muted", text: "Year-to-date charts appear after the season file is rebuilt."})
     ));
     if (season.charts && season.charts.groups && season.charts.groups.length) {
       view.appendChild(h("h2", {class: "section-title", text: "By pick"}));
       season.charts.groups.forEach(function (group) {
-        var chart = withAggregate(group, group.id);
+        var chart = gradeChart(withAggregate(group, group.id), group.id);
         view.appendChild(h("section", {class: "card"},
           h("h2", {text: group.label || ("Pick " + group.id)}),
           h("p", {class: "muted small", text: "Each method on this pick, with this pick's random baseline."}),

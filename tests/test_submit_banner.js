@@ -24,7 +24,7 @@ function grab(name) {
 const names = [
   "pct", "pOf", "torontoClock", "startIso", "submitRule", "availableAt",
   "torontoMinutes", "playoffSlate", "listSize", "modelTop", "chosenTop", "pickStartsSoon",
-  "slateChance", "submitAdvice"
+  "slateChance", "allGamesStarted", "submitAdvice"
 ];
 const context = {};
 vm.runInNewContext(
