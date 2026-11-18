@@ -16,6 +16,7 @@ joblib file). The two extra methods use numpy only (`clones/`).
   model/raw/                           NHL box scores and TOI. Not published
   job/run_daily.py                     the daily runner
   web/                                 static page (html, css, js)
+  web/stamp_assets.py                  rewrite ?v= hashes in index.html after CSS/JS changes
   secrets/tims.env                     chmod 600. See deploy/tims.env.example
   publish/                             job output. rsync source
   logs/daily.log                       outside the web root
@@ -224,3 +225,11 @@ Exit 1 leaves failed days unchanged; run it again after fixing the feed.
 * If the refresh token is rejected, the run logs the failure (the cron log
   is `~/tims-hockey/logs/daily.log`, outside the web root) and leaves the
   published JSON as it was.
+
+## Cache-busting the static page
+
+`web/index.html` loads `style.css`, `mix.js`, and `app.js` with a content-hash
+query string (`?v=...`). After you change those files, run
+`python3 web/stamp_assets.py` so the next `cp -r web/.` deploy makes phones
+fetch the new copy. The host's site-root `.htaccess` is never touched;
+`web/.htaccess` only asks browsers not to cache the HTML shell.

@@ -1,0 +1,7 @@
+# Cache the HTML shell only after revalidation so a deploy of versioned
+# JS/CSS is picked up. Do not put this in the site-root .htaccess.
+<IfModule mod_headers.c>
+  <Files "index.html">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </Files>
+</IfModule>
