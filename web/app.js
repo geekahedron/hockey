@@ -1787,7 +1787,7 @@
     var row = h("div", {class: "today-picks-row"});
     (picks || []).forEach(function (pick) {
       var group = groupById(day, pick.groupId);
-      row.appendChild(h("div", {class: "today-pick"},
+      row.appendChild(h("div", {class: "today-pick " + (pickTint(pick.groupId) || "")},
         h("div", {class: "lab", text: "Group " + pick.groupId}),
         h("div", {class: "name", text: pick.name || "No pick"}),
         h("div", {class: "meta", text: teamsAndTime(pick, group, day)}),
@@ -2955,7 +2955,7 @@
       view.appendChild(h("h2", {class: "section-title", text: "By pick"}));
       season.charts.groups.forEach(function (group) {
         var chart = withoutHiddenCustom(gradeChart(withAggregate(group, group.id), group.id));
-        view.appendChild(h("section", {class: "card"},
+        view.appendChild(h("section", {class: "card group-chart " + pickTint(group.id)},
           h("h2", {text: group.label || ("Pick " + group.id)}),
           h("p", {class: "muted small", text: "Each method on this pick, with this pick's random baseline."}),
           chartLegend(chart),
