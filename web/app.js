@@ -204,8 +204,6 @@
     document.body.classList.toggle("backtest", !!(state.backtest || state.allSeasons));
     var label = document.getElementById("season-label");
     if (label) label.hidden = !(state.seasons && state.seasons.length > 1);
-    var showCustom = document.getElementById("show-custom");
-    if (showCustom) showCustom.checked = !!state.showCustom;
     renderSeasonNote();
   }
 
@@ -2466,6 +2464,20 @@
     var body = h("div", {id: "mix-body", class: "mix-body"});
     if (!open) body.hidden = true;
     panel.appendChild(body);
+    var showBox = document.createElement("input");
+    showBox.type = "checkbox";
+    showBox.id = "show-custom";
+    showBox.checked = !!state.showCustom;
+    showBox.title = "Off hides Custom mix from lists, charts, and records unless it is the selected method.";
+    showBox.addEventListener("change", function () {
+      state.showCustom = !!showBox.checked;
+      writeStored("hockey.showCustom", state.showCustom ? "1" : "0");
+      show(state.view);
+    });
+    body.appendChild(h("label", {class: "setting", for: "show-custom"},
+      showBox,
+      "Show custom mix"
+    ));
     var mix = rules.copyMix(state.mix);
     var preset = document.createElement("select");
     [["", "Per list"], ["average", "Average of probabilities"], ["majority", "Majority of the three picks"]].forEach(function (pair) {
@@ -3181,15 +3193,6 @@
         show(state.view);
       }
     });
-    var showCustomBox = document.getElementById("show-custom");
-    if (showCustomBox) {
-      showCustomBox.checked = !!state.showCustom;
-      showCustomBox.addEventListener("change", function () {
-        state.showCustom = !!showCustomBox.checked;
-        writeStored("hockey.showCustom", state.showCustom ? "1" : "0");
-        show(state.view);
-      });
-    }
     var seasonSelect = document.getElementById("season");
     if (seasonSelect) {
       seasonSelect.addEventListener("change", function (event) {

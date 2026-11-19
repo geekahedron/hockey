@@ -44,7 +44,8 @@ main{max-width:1100px;margin:0 auto;padding:8px 12px 24px}
 .pill.miss{background:var(--navy2);color:var(--muted)}
 .pill.pending{background:var(--navy2);color:var(--muted)}
 label.method{display:flex;flex-direction:row;align-items:center;gap:8px;margin-left:0;color:var(--muted);font-size:13px}
-label.setting input{width:18px;height:18px;margin:0;accent-color:var(--orange)}
+.mix-body label.setting{display:flex;align-items:center;gap:8px;margin:0 0 10px;color:var(--ink);font-size:14px;font-weight:600}
+.mix-body label.setting input{width:18px;height:18px;margin:0;accent-color:var(--orange)}
 button.mix-toggle{
   display:flex;align-items:center;gap:8px;width:100%;
   background:transparent;color:var(--ink);border:0;border-radius:8px;
