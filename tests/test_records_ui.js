@@ -39,9 +39,9 @@ assertEqual(
   "records line"
 );
 assertEqual(context.recordLine(null), "\u2014", "empty");
-assertEqual(context.pickTint(1), "g1", "green");
-assertEqual(context.pickTint(2), "g2", "orange");
-assertEqual(context.pickTint(3), "g3", "blue");
+assertEqual(context.pickTint(1), "g1", "group 1");
+assertEqual(context.pickTint(2), "g2", "group 2");
+assertEqual(context.pickTint(3), "g3", "group 3");
 
 const lines = context.groupChangeLines([{
   time: "2026-11-16T20:30:00Z",
@@ -55,5 +55,18 @@ const lines = context.groupChangeLines([{
 assertEqual(lines.length, 3, "one line per group and change");
 assertEqual(context.changeLineText(lines[0], "3:30 PM"), "3:30 PM \u00b7 Added \u00b7 Group 3: Denver Barkey, Eetu Luostarinen", "grouped names");
 assertEqual(context.changeLineText(lines[2], "3:30 PM"), "3:30 PM \u00b7 Removed \u00b7 Group 3: Mitch Marner", "removed line");
+
+const css = fs.readFileSync(path.join(__dirname, "..", "web", "style.css"), "utf8");
+function has(needle) {
+  if (css.indexOf(needle) < 0) throw new Error("missing " + needle);
+}
+has(".g1{color:#f6c2cc;border-left-color:#e892a6}");
+has(".g2{color:#ffc48a;border-left-color:#ff8c1a}");
+has(".g3{color:#f6e7a8;border-left-color:#e6cf6a}");
+["#b7f3c9", "#3dce73", "#a9d4ff", "#5aa2f0"].forEach(function (old) {
+  if (css.indexOf(old) >= 0) throw new Error("old group color still in css: " + old);
+});
+if (src.indexOf('class: "today-pick " + (pickTint(pick.groupId)') < 0) throw new Error("top box has no group color");
+if (src.indexOf("group-chart") < 0) throw new Error("pick charts have no group color");
 
 console.log("records ui ok");

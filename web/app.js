@@ -33,6 +33,8 @@
     backtest: false,
     allSeasons: false,
     mix: null,
+    showCustom: false,
+    mixPanelOpen: null,
     evalMode: "morning",
     phaseFilter: "combined",
     dayCache: {},
@@ -202,6 +204,8 @@
     document.body.classList.toggle("backtest", !!(state.backtest || state.allSeasons));
     var label = document.getElementById("season-label");
     if (label) label.hidden = !(state.seasons && state.seasons.length > 1);
+    var showCustom = document.getElementById("show-custom");
+    if (showCustom) showCustom.checked = !!state.showCustom;
     renderSeasonNote();
   }
 
@@ -862,6 +866,30 @@
     return [rules.AGGREGATE].concat(methods).concat([rules.CUSTOM]);
   }
 
+  // The method menu always lists Custom mix. The toggle hides it from
+  // comparison lists, charts, and records. Selecting Custom mix still shows
+  // those rows, because that view is the mix itself.
+  function customRowsVisible(showCustom, method) {
+    return !!showCustom || method === "custom";
+  }
+
+  function listedMethods(doc) {
+    var show = customRowsVisible(state.showCustom, state.method);
+    return trackMethods(doc).filter(function (method) {
+      return !method || method.id !== "custom" || show;
+    });
+  }
+
+  function withoutHiddenCustom(block) {
+    if (!block || !block.series || customRowsVisible(state.showCustom, state.method)) return block;
+    var copy = {};
+    Object.keys(block).forEach(function (key) { copy[key] = block[key]; });
+    copy.series = (block.series || []).filter(function (item) {
+      return !item || item.id !== "custom";
+    });
+    return copy;
+  }
+
   function fillMethodSelect() {
     var sel = document.getElementById("method");
     var methods = trackMethods(state.today || state.season || {});
@@ -896,7 +924,7 @@
 
   function renderSummary(day, mode) {
     var wrap = h("div", {class: "summary"});
-    var methods = trackMethods(day);
+    var methods = listedMethods(day);
     var selected = methodMeta(day);
     var multi = methods.length > 1;
     (day.groups || []).forEach(function (group) {
@@ -926,7 +954,7 @@
           );
         })));
       }
-      trackMethods(day).forEach(function (method) {
+      listedMethods(day).forEach(function (method) {
         var earlier = morningPick(day, group.id, method.id);
         if (!earlier || !earlier.name || samePick(pickOf(group, method.id), earlier)) return;
         var text = "Morning pick \u00b7 " + method.label + ": " + earlier.name;
@@ -1759,7 +1787,7 @@
     var row = h("div", {class: "today-picks-row"});
     (picks || []).forEach(function (pick) {
       var group = groupById(day, pick.groupId);
-      row.appendChild(h("div", {class: "today-pick"},
+      row.appendChild(h("div", {class: "today-pick " + (pickTint(pick.groupId) || "")},
         h("div", {class: "lab", text: "Group " + pick.groupId}),
         h("div", {class: "name", text: pick.name || "No pick"}),
         h("div", {class: "meta", text: teamsAndTime(pick, group, day)}),
@@ -2305,6 +2333,7 @@
     else if (chosen.fresh) state.mix = rules.defaultMix();
     else state.mix = rules.parseMix(storedMix || "");
     state.method = chosen.method;
+    state.showCustom = readStored("hockey.showCustom") === "1";
     var phase = query.get("phase") || readStored("hockey.phase") || "combined";
     state.phaseFilter = phase === "regular" || phase === "playoffs" ? phase : "combined";
     var evalMode = query.get("eval") || readStored("hockey.eval") || "morning";
@@ -2332,6 +2361,53 @@
     if (next !== location.pathname + location.search + location.hash) {
       history.replaceState(null, "", next);
     }
+  }
+
+  function mixPanelOpen(storedPanel, mixText) {
+    if (storedPanel === "open") return true;
+    if (storedPanel === "closed") return false;
+    return !mixText;
+  }
+
+  function shortMethod(id, methods) {
+    var label = "";
+    (methods || []).forEach(function (method) {
+      if (method && method.id === id && method.label) label = method.label;
+    });
+    if (!label && (!id || id === "model")) label = "Logistic model";
+    if (!label) label = String(id || "");
+    var lower = label.toLowerCase();
+    if (lower.indexOf("logistic") === 0) return "Logistic";
+    if (lower.indexOf("scoring") === 0) return "Scoring rate";
+    if (lower.indexOf("goals") === 0) return "Goals/game";
+    if (label.length <= 18) return label;
+    return label.split(" ")[0];
+  }
+
+  function mixSummary(mix, methods) {
+    var rules = mixApi();
+    var config = rules ? rules.copyMix(mix) : (mix || {lists: {}, months: {}, phases: {}});
+    if (config.preset === "average") return "Average of probabilities";
+    if (config.preset === "majority") return "Majority of the three picks";
+    var months = config.months || {};
+    var phases = config.phases || {};
+    var same = (config.lists["1"] || "model") === (config.lists["2"] || "model")
+      && (config.lists["2"] || "model") === (config.lists["3"] || "model");
+    var monthKeys = Object.keys(months);
+    var bits = [];
+    if (same && !monthKeys.length && !phases.regular && !phases.playoffs) {
+      return "Per list \u00b7 " + shortMethod(config.lists["1"] || "model", methods);
+    }
+    ["1", "2", "3"].forEach(function (id) {
+      bits.push(id + " " + shortMethod(config.lists[id] || "model", methods));
+    });
+    var names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    monthKeys.sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (key) {
+      bits.push((names[Number(key)] || key) + " " + shortMethod(months[key], methods));
+    });
+    if (phases.regular) bits.push("Regular " + shortMethod(phases.regular, methods));
+    if (phases.playoffs) bits.push("Playoffs " + shortMethod(phases.playoffs, methods));
+    return bits.join(" \u00b7 ");
   }
 
   function methodChoices() {
@@ -2364,6 +2440,32 @@
     if (!showPanel) return;
     clear(panel);
     if (!state.mix) loadMixFromPage();
+    if (state.mixPanelOpen == null) {
+      state.mixPanelOpen = mixPanelOpen(readStored("hockey.mixPanel"), readStored("hockey.mix"));
+    }
+    var open = !!state.mixPanelOpen;
+    var summary = mixSummary(state.mix, knownMethods());
+    var toggle = h("button", {
+      type: "button",
+      class: "mix-toggle",
+      "aria-expanded": open ? "true" : "false",
+      "aria-controls": "mix-body"
+    },
+      h("span", {class: "mix-title", text: "Custom mix"}),
+      summary ? h("span", {class: "mix-summary", text: summary}) : null,
+      h("span", {class: "mix-chevron", "aria-hidden": "true", text: open ? "\u25be" : "\u25b8"})
+    );
+    toggle.addEventListener("click", function () {
+      state.mixPanelOpen = !state.mixPanelOpen;
+      writeStored("hockey.mixPanel", state.mixPanelOpen ? "open" : "closed");
+      renderMixPanel();
+      var next = document.querySelector("#mix-panel .mix-toggle");
+      if (next && next.focus) next.focus();
+    });
+    panel.appendChild(toggle);
+    var body = h("div", {id: "mix-body", class: "mix-body"});
+    if (!open) body.hidden = true;
+    panel.appendChild(body);
     var mix = rules.copyMix(state.mix);
     var preset = document.createElement("select");
     [["", "Per list"], ["average", "Average of probabilities"], ["majority", "Majority of the three picks"]].forEach(function (pair) {
@@ -2410,8 +2512,7 @@
         show(state.view);
       }}));
     });
-    panel.appendChild(h("div", null,
-      h("h2", {text: "Custom mix"}),
+    body.appendChild(h("div", null,
       h("p", {class: "muted small", text: "Chooses among the three methods. It does not recompute their probabilities. A phase override beats a month override, and a month override beats the per-list choice. Aggregate is separate: in the regular season, list 1 is the scoring-rate estimate and lists 2 and 3 are the logistic model. In the playoffs, all three lists use the logistic model."}),
       h("div", {class: "mix-row"}, h("label", null, "Preset", preset)),
       grid,
@@ -2584,7 +2685,7 @@
     });
     var blocks = phases.map(function (pair) {
       var stats = h("div", {class: "records"});
-      trackMethods(state.season || state.today || {}).forEach(function (method) {
+      listedMethods(state.season || state.today || {}).forEach(function (method) {
         var row = metricsFor(method.id, pair[0]);
         stats.appendChild(h("p", {class: "record-line" + (method.id === selected.id && state.phaseFilter === pair[0] ? " on" : "")},
           h("b", {text: method.label}),
@@ -2825,8 +2926,8 @@
       var part = season.by_method && season.by_method[method.id];
       return (part && part.summary) || {};
     }
-    if (trackMethods(season).length > 1) {
-      compare = h("div", {class: "records"}, trackMethods(season).map(function (method) {
+    if (listedMethods(season).length > 1) {
+      compare = h("div", {class: "records"}, listedMethods(season).map(function (method) {
         return h("p", {class: "record-line" + (method.id === selected.id ? " on" : "")},
           h("b", {text: method.label}),
           " " + recordLine(trackerRow(method))
@@ -2844,16 +2945,17 @@
         h("div", {class: "stat"}, h("b", {text: pct(statRate(sum.random_baseline, mixedRates.random_baseline))}), h("span", {text: "Random baseline"}))
       ),
       season.charts && season.charts.overall
-        ? h("div", null,
-            chartLegend(gradeChart(withAggregate(season.charts.overall, null), null)),
-            chartPair(gradeChart(withAggregate(season.charts.overall, null), null), reconstructedMarks(season)))
+        ? (function () {
+            var chart = withoutHiddenCustom(gradeChart(withAggregate(season.charts.overall, null), null));
+            return h("div", null, chartLegend(chart), chartPair(chart, reconstructedMarks(season)));
+          })()
         : h("p", {class: "muted", text: "Year-to-date charts appear after the season file is rebuilt."})
     ));
     if (season.charts && season.charts.groups && season.charts.groups.length) {
       view.appendChild(h("h2", {class: "section-title", text: "By pick"}));
       season.charts.groups.forEach(function (group) {
-        var chart = gradeChart(withAggregate(group, group.id), group.id);
-        view.appendChild(h("section", {class: "card"},
+        var chart = withoutHiddenCustom(gradeChart(withAggregate(group, group.id), group.id));
+        view.appendChild(h("section", {class: "card group-chart " + pickTint(group.id)},
           h("h2", {text: group.label || ("Pick " + group.id)}),
           h("p", {class: "muted small", text: "Each method on this pick, with this pick's random baseline."}),
           chartLegend(chart),
@@ -3079,6 +3181,15 @@
         show(state.view);
       }
     });
+    var showCustomBox = document.getElementById("show-custom");
+    if (showCustomBox) {
+      showCustomBox.checked = !!state.showCustom;
+      showCustomBox.addEventListener("change", function () {
+        state.showCustom = !!showCustomBox.checked;
+        writeStored("hockey.showCustom", state.showCustom ? "1" : "0");
+        show(state.view);
+      });
+    }
     var seasonSelect = document.getElementById("season");
     if (seasonSelect) {
       seasonSelect.addEventListener("change", function (event) {

@@ -48,7 +48,7 @@ const context = {
 vm.runInNewContext(mix, context);
 const names = [
   "pct", "kindOf", "formatBlock", "torontoGameTime", "pickPids", "playerForPick",
-  "gameSource", "startIso", "teamsAndTime", "groupById", "h", "appendChild", "pickRow"
+  "gameSource", "startIso", "teamsAndTime", "groupById", "pickTint", "h", "appendChild", "pickRow"
 ];
 vm.runInNewContext(
   names.map(grab).concat([
