@@ -78,9 +78,8 @@ assertEqual(
   "per-list summary"
 );
 
-if (html.indexOf("Show custom mix") < 0) throw new Error("settings toggle missing");
-if (html.indexOf('id="show-custom"') < 0) throw new Error("toggle id missing");
-if (/id="show-custom"[^>]*checked/.test(html)) throw new Error("toggle defaults on");
+if (html.indexOf("Show custom mix") >= 0) throw new Error("toggle is still in the top bar");
+if (html.indexOf("show-custom") >= 0) throw new Error("toggle id is still in the page shell");
 
 const menu = grab("fillMethodSelect");
 if (menu.indexOf("trackMethods") < 0) throw new Error("method menu lost Custom mix");
@@ -94,6 +93,9 @@ if (season.indexOf("withoutHiddenCustom") < 0) throw new Error("charts ignore th
 const panel = grab("renderMixPanel");
 if (panel.indexOf('aria-expanded') < 0 || panel.indexOf('aria-controls') < 0) throw new Error("mix header is not a disclosure");
 if (panel.indexOf("mix-summary") < 0) throw new Error("collapsed header has no summary");
+if (panel.indexOf("Show custom mix") < 0 || panel.indexOf("show-custom") < 0) throw new Error("toggle is not inside the mix panel");
+if (panel.indexOf('state.method === "custom"') < 0) throw new Error("panel is not tied to the Custom mix method");
+if (panel.indexOf("checked = true") >= 0) throw new Error("toggle defaults on");
 if (app.indexOf('writeStored("hockey.showCustom"') < 0) throw new Error("toggle is not stored");
 if (app.indexOf('writeStored("hockey.mixPanel"') < 0) throw new Error("collapse is not stored");
 
