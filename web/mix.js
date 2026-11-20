@@ -663,6 +663,7 @@
   }
 
   function dayRecord(day, methodId, config, methods, mode) {
+    if (day && day.status === "no_games") return null;
     var hits = 0;
     var picks = 0;
     (day.groups || []).forEach(function (group) {
@@ -678,7 +679,7 @@
 
   function computeMetrics(days, methodId, config, methods, phase, mode) {
     var rows = (days || []).filter(function (day) {
-      if (!day || !day.date) return false;
+      if (!day || !day.date || day.status === "no_games") return false;
       if (phase && phase !== "combined" && phaseOf(day) !== phase) return false;
       return true;
     });

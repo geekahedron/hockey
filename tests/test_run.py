@@ -212,7 +212,12 @@ def test_log_and_secrets_stay_out_of_the_publish_dir(tmp_path, monkeypatch):
         "--publish", str(publish),
         "--no-refresh",
         "--log", str(log_path),
-    ], tims_source=source)
+    ], get_json=lambda url: {"games": [{
+        "gameState": "FUT",
+        "gameScheduleState": "OK",
+        "homeTeam": {"abbrev": "EDM"},
+        "awayTeam": {"abbrev": "SJS"},
+    }]}, tims_source=source)
     assert code == 1
     text = log_path.read_text()
     assert CANARY not in text
