@@ -69,6 +69,9 @@ button.ghost:hover{background:rgba(255,140,26,.12)}
 .small{font-size:12.5px}
 .warn{color:#ffb066}
 .ok{color:var(--hit)}
+.slate-date{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin:2px 0 10px}
+.slate-date h2{margin:0;font-size:26px;font-weight:700}
+.slate-note{margin:0;color:var(--muted);font-size:15px}
 .dayhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin:6px 0 2px}
 .dayhead p{margin:0}
 .day-recon{margin:2px 0 8px;color:var(--muted);font-size:12.5px}
