@@ -43,6 +43,7 @@
     summaryDoc: null,
     todayLoading: false,
     todayStale: false,
+    todayReason: "",
     refreshTried: false
   };
   var lastPlayerButton = null;
@@ -610,6 +611,13 @@
     var iso = day && String(day.date || "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
     return iso === torontoDate(now);
+  }
+
+  function staleNote(loading, stale, reason) {
+    if (loading) return "Loading today's data\u2026";
+    if (!stale) return "";
+    if (reason === "no_games") return "No NHL games today, so there are no Tims lists.";
+    return "Today's lists aren't available yet";
   }
 
   function pct(v) {
@@ -1872,9 +1880,7 @@
 
   function renderSlateStatus(day) {
     var label = prominentDate(day && day.date) || "Today";
-    var note = "";
-    if (state.todayLoading) note = "Loading today's data\u2026";
-    else if (state.todayStale) note = "Today's lists aren't available yet";
+    var note = staleNote(state.todayLoading, state.todayStale, state.todayReason);
     return h("div", {class: "slate-date"},
       h("h2", {text: label}),
       note ? h("p", {class: "slate-note", role: "status", text: note}) : null
@@ -3157,6 +3163,7 @@
     if (state.backtest && state.view === "today") state.view = "season";
     state.todayLoading = false;
     state.todayStale = false;
+    state.todayReason = "";
     if (!state.backtest && !slateCurrent(state.today)) state.todayLoading = true;
     show(state.view);
     if (state.pastDate) selectPast(state.pastDate);
@@ -3169,16 +3176,27 @@
     state.refreshTried = true;
     state.todayLoading = true;
     state.todayStale = false;
+    state.todayReason = "";
     if (state.view === "today") renderToday();
     var token = loadToken;
     fetch("refresh.php", {method: "POST", cache: "no-store", headers: {"Accept": "application/json"}})
+      .then(function (res) {
+        if (!res || !res.json) return null;
+        return res.json().catch(function () { return null; });
+      })
       .catch(function () { return null; })
-      .then(function () { return load("today.json").catch(function () { return state.today; }); })
-      .then(function (day) {
+      .then(function (body) {
+        return load("today.json").catch(function () { return state.today; }).then(function (day) {
+          return {body: body, day: day};
+        });
+      })
+      .then(function (result) {
         if (token !== loadToken) return;
-        state.today = day || null;
+        var body = result.body;
+        state.today = result.day || null;
         state.todayLoading = false;
         state.todayStale = !slateCurrent(state.today);
+        state.todayReason = state.todayStale && body && body.status === "no_games" ? "no_games" : "";
         if (state.view === "today") renderToday();
       });
   }

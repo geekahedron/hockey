@@ -236,9 +236,12 @@ fetch the new copy. The host's site-root `.htaccess` is never touched;
 `web/.htaccess` only asks browsers not to cache the HTML shell.
 
 `web/refresh.php` is copied with the page. When `today.json` is not Toronto's
-date, the page POSTs to it. The script runs `job/run_daily.py` once, then
-rsyncs `publish/` the same way cron does. A lock file and a 10-minute stamp
-in `~/tims-hockey/logs/` (`page-refresh.lock`, `page-refresh.at`) keep page
-loads from calling Tims again. Credentials stay in `secrets/tims.env`. The
-script does not submit a pick. If the published date is already today, it
-does not call Tims.
+date, the page POSTs to it. The script reads the public NHL score feed for
+that date, the same `/v1/score/DATE` document the daily job uses. No games
+returns `no_games` and does not call Tims. A game day still runs
+`job/run_daily.py` once, then rsyncs `publish/` the same way cron does. A
+lock file and a 10-minute stamp in `~/tims-hockey/logs/` (`page-refresh.lock`,
+`page-refresh.at`, `page-refresh.json`) keep page loads from calling Tims or
+the score feed again. Credentials stay in `secrets/tims.env`. The script does
+not submit a pick. If the published date is already today, it does not call
+Tims.
