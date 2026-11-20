@@ -291,11 +291,17 @@ function hockey_run_publish($root, $publish)
     return proc_close($proc);
 }
 
+function hockey_accepts_refresh($method, $refresh)
+{
+    return $method === "POST" && (string) $refresh === "1";
+}
+
 function hockey_refresh_main()
 {
     $method = isset($_SERVER["REQUEST_METHOD"]) ? $_SERVER["REQUEST_METHOD"] : "GET";
-    if ($method !== "POST") {
-        if (!headers_sent()) {
+    $posted = isset($_POST["refresh"]) ? (string) $_POST["refresh"] : "";
+    if (!hockey_accepts_refresh($method, $posted)) {
+        if ($method !== "POST" && !headers_sent()) {
             header("Allow: POST");
             http_response_code(405);
         }

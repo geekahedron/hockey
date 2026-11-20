@@ -3179,7 +3179,15 @@
     state.todayReason = "";
     if (state.view === "today") renderToday();
     var token = loadToken;
-    fetch("refresh.php", {method: "POST", cache: "no-store", headers: {"Accept": "application/json"}})
+    fetch("refresh.php", {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: "refresh=1"
+    })
       .then(function (res) {
         if (!res || !res.json) return null;
         return res.json().catch(function () { return null; });

@@ -52,6 +52,9 @@ const refresh = grab("refreshToday");
 if (refresh.indexOf('fetch("refresh.php"') < 0 || refresh.indexOf('method: "POST"') < 0) {
   throw new Error("stale page does not ask the server to publish");
 }
+if (refresh.indexOf("application/x-www-form-urlencoded") < 0 || refresh.indexOf('body: "refresh=1"') < 0) {
+  throw new Error("refresh POST has no form body");
+}
 if (refresh.indexOf('load("today.json")') < 0) throw new Error("refresh does not re-read today.json");
 assertEqual(context.staleNote(true, true, "no_games"), "Loading today's data\u2026", "loading wins");
 assertEqual(context.staleNote(false, false, "no_games"), "", "current slate has no note");

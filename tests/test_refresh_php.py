@@ -16,6 +16,8 @@ def test_refresh_script_stays_read_only():
     assert "page-refresh.json" in text
     assert "https://api-web.nhle.com/v1/score/" in text
     assert "no_games" in text
+    assert '$_POST["refresh"]' in text
+    assert "hockey_accepts_refresh" in text
     assert "TIMS_ENV" in text
     assert "escapeshellarg" in text
     assert "SubmitHockey" not in text
@@ -68,6 +70,18 @@ def test_refresh_decision_and_toronto_date():
         if (hockey_cached_gap($cached, "2026-11-21") !== "not_ready") exit(17);
         if (hockey_cached_gap(null, "2026-11-20") !== "not_ready") exit(18);
         if (hockey_score_url("2026-11-20") !== "https://api-web.nhle.com/v1/score/2026-11-20") exit(19);
+        if (!hockey_accepts_refresh("POST", "1")) exit(20);
+        if (hockey_accepts_refresh("POST", "")) exit(21);
+        if (hockey_accepts_refresh("GET", "1")) exit(22);
+        $_SERVER["REQUEST_METHOD"] = "POST";
+        $_POST = array();
+        ob_start();
+        hockey_refresh_main();
+        $empty = ob_get_clean();
+        if ($empty !== '{"status":"error","date":""}') {
+            fwrite(STDERR, $empty);
+            exit(23);
+        }
         """
         % repr(PHP)
     )
