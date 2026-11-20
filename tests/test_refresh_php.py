@@ -18,6 +18,9 @@ def test_refresh_script_stays_read_only():
     assert "no_games" in text
     assert '$_POST["refresh"]' in text
     assert "hockey_accepts_refresh" in text
+    assert 'hockey_respond("no_games", $toronto)' in text
+    assert 'hockey_respond($status, $toronto)' in text
+    assert 'hockey_respond("no_games", $shown)' not in text
     assert "TIMS_ENV" in text
     assert "escapeshellarg" in text
     assert "SubmitHockey" not in text

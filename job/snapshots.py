@@ -97,6 +97,26 @@ _POSTPONED = {"PPD", "POSTPONED", "CNCL", "CANCELLED", "CANCELED", "SUSP", "SUSP
 _UNDER_WAY = {"LIVE", "CRIT", "OVER", "FINAL", "OFF"}
 
 
+def scheduled_game_count(payload):
+    """Games still on the card. Postponed and cancelled games do not count.
+
+    ``None`` means the score document could not be read. Zero means the
+    date has no NHL game, so there is no Tims list to fetch.
+    """
+    if not isinstance(payload, dict):
+        return None
+    count = 0
+    for game in payload.get("games") or []:
+        if not isinstance(game, dict):
+            continue
+        state = str(game.get("gameState") or "").upper()
+        schedule = str(game.get("gameScheduleState") or "").upper()
+        if schedule in _POSTPONED or state in _POSTPONED:
+            continue
+        count += 1
+    return count
+
+
 def game_board(payload):
     """Map team abbrev to start time, schedule state, and game state.
 

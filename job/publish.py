@@ -227,6 +227,8 @@ def _season_for_method(days, method_id):
     running_random_n = 0
     out_days = []
     for day in days:
+        if day.get("status") == "no_games":
+            continue
         graded_groups = []
         listed = []
         for group in day.get("groups") or []:
@@ -479,10 +481,11 @@ def build_index(days, today):
     for day in days:
         hits = 0.0
         picks = 0
-        for group in day.get("groups") or []:
-            if group.get("status") == "graded" and group.get("hit") is not None:
-                hits += group["hit"]
-                picks += 1
+        if day.get("status") != "no_games":
+            for group in day.get("groups") or []:
+                if group.get("status") == "graded" and group.get("hit") is not None:
+                    hits += group["hit"]
+                    picks += 1
         row = {
             "date": day.get("date"),
             "status": day.get("status"),

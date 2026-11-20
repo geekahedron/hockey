@@ -58,6 +58,7 @@ from job.snapshots import (
     propagate_starts,
     record_fingerprint,
     same_lists,
+    scheduled_game_count,
     stamp_toronto,
 )
 
@@ -222,6 +223,28 @@ def _grade_published(publish_dir, getter, log):
         log("graded %s -> %s" % (saved["date"], saved["status"]))
 
 
+def _publish_no_games(publish_dir, when, log):
+    """Write an empty day when the NHL card has no games. Does not call Tims."""
+    from job.score import season_label
+
+    day = {
+        "schema": 1,
+        "date": when.isoformat(),
+        "status": "no_games",
+        "generated_at": stamp_toronto(),
+        "season": season_label(when),
+        "model": "logistic",
+        "methods": [],
+        "groups": [],
+        "games": {},
+        "lists": {"groups": []},
+        "picks": [],
+        "skipped": [],
+    }
+    publish_day(publish_dir, day, as_today=True)
+    log("no games %s" % when.isoformat())
+
+
 def _official_pick_ids(group):
     """Player ids of the stored official pick, when one was published."""
     model = (group.get("method_picks") or {}).get("model") or {}
@@ -244,6 +267,8 @@ def _needs_grade(day):
     and groups that never had a pick stay finished.
     """
     if not isinstance(day, dict):
+        return False
+    if day.get("status") == "no_games":
         return False
     if day.get("status") != "graded":
         return True
@@ -456,6 +481,12 @@ def run(argv=None, get_json=None, tims_source=None):
                 _stamp_status(kept, getter, raw_dir, log)
                 publish_day(publish_dir, kept, as_today=True)
             else:
+                schedule_payload = getter(
+                    "https://api-web.nhle.com/v1/score/%s" % when.isoformat()
+                )
+                if scheduled_game_count(schedule_payload) == 0:
+                    _publish_no_games(publish_dir, when, log)
+                    return 0
                 if args.groups:
                     source = FileGroupsSource(args.groups)
                 elif tims_source is not None:
@@ -464,9 +495,6 @@ def run(argv=None, get_json=None, tims_source=None):
                     source = TimsGroupsSource(publish_dir=publish_dir)
                 groups = source.fetch(when)
                 log("groups %s: %d groups" % (when.isoformat(), len(groups.get("groups") or [])))
-                schedule_payload = getter(
-                    "https://api-web.nhle.com/v1/score/%s" % when.isoformat()
-                )
                 if schedule_payload is None:
                     log("schedule feed unavailable; using home/away from the groups file")
                     schedule_payload = {}
@@ -478,6 +506,8 @@ def run(argv=None, get_json=None, tims_source=None):
                 )
                 observed = stamp_toronto()
                 existing = load_day(publish_dir, when.isoformat())
+                if existing is not None and existing.get("status") == "no_games":
+                    existing = None
                 if existing is None:
                     day = open_slate(scored, observed, schedule_payload)
                     log("scored %s (%d groups)" % (when.isoformat(), len(day["groups"])))

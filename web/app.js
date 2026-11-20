@@ -44,6 +44,7 @@
     todayLoading: false,
     todayStale: false,
     todayReason: "",
+    checkedDate: "",
     refreshTried: false
   };
   var lastPlayerButton = null;
@@ -611,6 +612,12 @@
     var iso = day && String(day.date || "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
     return iso === torontoDate(now);
+  }
+
+  function displayDate(checked, now) {
+    var iso = String(checked || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+    return torontoDate(now);
   }
 
   function staleNote(loading, stale, reason) {
@@ -1879,8 +1886,10 @@
   }
 
   function renderSlateStatus(day) {
-    var label = prominentDate(day && day.date) || "Today";
-    var note = staleNote(state.todayLoading, state.todayStale, state.todayReason);
+    var label = prominentDate(displayDate(state.checkedDate)) || "Today";
+    var off = !!(day && day.status === "no_games");
+    var reason = off ? "no_games" : state.todayReason;
+    var note = staleNote(state.todayLoading, state.todayStale || off, reason);
     return h("div", {class: "slate-date"},
       h("h2", {text: label}),
       note ? h("p", {class: "slate-note", role: "status", text: note}) : null
@@ -1892,7 +1901,7 @@
     clear(view);
     var day = state.today;
     view.appendChild(renderSlateStatus(day));
-    if (state.todayLoading || state.todayStale) return;
+    if (state.todayLoading || state.todayStale || (day && day.status === "no_games")) return;
     if (!day) {
       view.appendChild(h("section", {class: "card"},
         h("h2", {text: "No slate yet"}),
@@ -1937,7 +1946,8 @@
 
   function dateButton(row) {
     var label = pretty(row.date);
-    if (row.picks) label += " \u00b7 " + row.hits + "/" + row.picks;
+    if (row.status === "no_games") label += " \u00b7 no games";
+    else if (row.picks) label += " \u00b7 " + row.hits + "/" + row.picks;
     else label += " \u00b7 pending";
     return h("button", {
       type: "button",
@@ -2018,6 +2028,11 @@
       return;
     }
     var day = state.past;
+    if (day.status === "no_games") {
+      view.appendChild(renderDayHead(day));
+      view.appendChild(h("p", {class: "slate-note", text: "No NHL games, so there are no Tims lists."}));
+      return;
+    }
     view.appendChild(renderDayHead(day));
     var pastPicks = renderPastPicks(day);
     if (pastPicks) view.appendChild(pastPicks);
@@ -2942,6 +2957,7 @@
       var selectedAll = methodMeta({});
       var bodyAll = document.createElement("tbody");
       (state.catalog || []).forEach(function (day) {
+        if (day.status === "no_games") return;
         if (state.phaseFilter !== "combined" && mixApi() && mixApi().phaseOf(day) !== state.phaseFilter) return;
         state.renderDay = day;
         (day.groups || []).forEach(function (group) {
@@ -3028,6 +3044,7 @@
     var useDays = state.method === "custom" || state.method === "aggregate" || state.phaseFilter !== "combined" || state.evalMode === "full_day";
     var tableDays = useDays && state.catalog && state.catalog.length
       ? state.catalog.filter(function (day) {
+        if (day.status === "no_games") return false;
         if (state.phaseFilter !== "combined" && mixApi() && mixApi().phaseOf(day) !== state.phaseFilter) return false;
         if (!state.allSeasons && state.seasonId && day.season && day.season !== state.seasonId) return false;
         return true;
@@ -3164,6 +3181,7 @@
     state.todayLoading = false;
     state.todayStale = false;
     state.todayReason = "";
+    state.checkedDate = "";
     if (!state.backtest && !slateCurrent(state.today)) state.todayLoading = true;
     show(state.view);
     if (state.pastDate) selectPast(state.pastDate);
@@ -3202,9 +3220,17 @@
         if (token !== loadToken) return;
         var body = result.body;
         state.today = result.day || null;
+        if (body && /^\d{4}-\d{2}-\d{2}$/.test(String(body.date || ""))) {
+          state.checkedDate = String(body.date).slice(0, 10);
+        }
         state.todayLoading = false;
         state.todayStale = !slateCurrent(state.today);
-        state.todayReason = state.todayStale && body && body.status === "no_games" ? "no_games" : "";
+        if (state.today && state.today.status === "no_games") {
+          state.todayStale = false;
+          state.todayReason = "no_games";
+        } else {
+          state.todayReason = state.todayStale && body && body.status === "no_games" ? "no_games" : "";
+        }
         if (state.view === "today") renderToday();
       });
   }

@@ -317,7 +317,7 @@ function hockey_refresh_main()
     }
     $toronto = hockey_toronto_today();
     if ($root === "" || $publish === "") {
-        hockey_respond("error", $shown);
+        hockey_respond("error", $toronto);
         return;
     }
     $logDir = $root . "/logs";
@@ -330,7 +330,7 @@ function hockey_refresh_main()
         if (is_resource($lock)) {
             fclose($lock);
         }
-        hockey_respond("busy", $shown);
+        hockey_respond("busy", $toronto);
         return;
     }
     $shown = hockey_publish_date($publish);
@@ -360,17 +360,10 @@ function hockey_refresh_main()
         $status = hockey_cached_gap(hockey_read_cache($cachePath), $toronto);
         flock($lock, LOCK_UN);
         fclose($lock);
-        hockey_respond($status, $shown);
+        hockey_respond($status, $toronto);
         return;
     }
     $games = hockey_count_games(hockey_fetch_score($toronto));
-    if ($games === 0) {
-        hockey_remember($logDir, $toronto, "no_games", $now);
-        flock($lock, LOCK_UN);
-        fclose($lock);
-        hockey_respond("no_games", $shown);
-        return;
-    }
     file_put_contents($stampPath, (string) $now);
     $code = hockey_run_publish($root, $publish);
     if ($code === 0 || $code === 75) {
@@ -381,10 +374,44 @@ function hockey_refresh_main()
     if ($after === "") {
         $after = hockey_publish_date($publish);
     }
+    $publishedStatus = "";
+    $webDoc = $web . "/today.json";
+    if (is_file($webDoc)) {
+        $decoded = json_decode((string) file_get_contents($webDoc), true);
+        if (is_array($decoded) && isset($decoded["status"])) {
+            $publishedStatus = (string) $decoded["status"];
+        }
+    }
+    if ($after !== $toronto) {
+        $publishDoc = $publish . "/today.json";
+        if (is_file($publishDoc)) {
+            $decoded = json_decode((string) file_get_contents($publishDoc), true);
+            if (is_array($decoded) && isset($decoded["status"])) {
+                $publishedStatus = (string) $decoded["status"];
+            }
+            if ($after === "") {
+                $after = hockey_json_date($publishDoc);
+            }
+        }
+    }
+    if ($after === $toronto && $publishedStatus === "no_games") {
+        hockey_remember($logDir, $toronto, "no_games", $now);
+        flock($lock, LOCK_UN);
+        fclose($lock);
+        hockey_respond("no_games", $toronto);
+        return;
+    }
     if ($after === $toronto) {
         flock($lock, LOCK_UN);
         fclose($lock);
-        hockey_respond("updated", $after);
+        hockey_respond("updated", $toronto);
+        return;
+    }
+    if ($games === 0) {
+        hockey_remember($logDir, $toronto, "no_games", $now);
+        flock($lock, LOCK_UN);
+        fclose($lock);
+        hockey_respond("no_games", $toronto);
         return;
     }
     $status = ($code === 75 || $code === 0) ? "not_ready" : "error";
@@ -393,7 +420,7 @@ function hockey_refresh_main()
     }
     flock($lock, LOCK_UN);
     fclose($lock);
-    hockey_respond($status, $after);
+    hockey_respond($status, $toronto);
 }
 
 if (!defined("HOCKEY_REFRESH_LIB")) {

@@ -23,8 +23,9 @@ function grab(name) {
 
 const context = {};
 vm.runInNewContext(
-  [grab("torontoDate"), grab("prominentDate"), grab("slateCurrent"), grab("staleNote"),
-    "this.prominentDate = prominentDate; this.slateCurrent = slateCurrent; this.staleNote = staleNote;"
+  [grab("torontoDate"), grab("prominentDate"), grab("slateCurrent"), grab("displayDate"), grab("staleNote"),
+    "this.prominentDate = prominentDate; this.slateCurrent = slateCurrent;",
+    "this.displayDate = displayDate; this.staleNote = staleNote;"
   ].join("\n"),
   context
 );
@@ -41,12 +42,20 @@ const morning = Date.parse("2026-11-20T11:23:00Z");
 assertEqual(context.slateCurrent({date: "2026-11-20"}, morning), true, "6:23 AM Toronto matches the file");
 assertEqual(context.slateCurrent({date: "2026-11-19"}, morning), false, "yesterday is stale at 6:23 AM");
 assertEqual(context.slateCurrent(null, morning), false, "missing file is not current");
+assertEqual(context.displayDate("2026-11-20", morning), "2026-11-20", "server date wins");
+assertEqual(context.displayDate("", morning), "2026-11-20", "header falls back to Toronto today");
+assertEqual(context.displayDate("2026-11-19", morning), "2026-11-19", "an explicit checked date is kept");
+assertEqual(context.prominentDate(context.displayDate("", morning)), "Friday, Nov 20, 2026", "header text");
 
 const today = grab("renderToday");
 const hold = today.indexOf("todayLoading || state.todayStale");
 const picks = today.indexOf("renderTodayPicks");
 if (hold < 0 || picks < 0 || hold > picks) throw new Error("a stale slate still renders today's picks");
 if (today.indexOf("renderSlateStatus") < 0) throw new Error("date is not at the top of today");
+const status = grab("renderSlateStatus");
+if (status.indexOf("displayDate(state.checkedDate)") < 0) throw new Error("header still uses the file date");
+if (status.indexOf("day.date") >= 0) throw new Error("header reads today.json's date");
+if (today.indexOf('day.status === "no_games"') < 0) throw new Error("a no-games day still renders picks");
 
 const refresh = grab("refreshToday");
 if (refresh.indexOf('fetch("refresh.php"') < 0 || refresh.indexOf('method: "POST"') < 0) {
