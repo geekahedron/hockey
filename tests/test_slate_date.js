@@ -23,8 +23,8 @@ function grab(name) {
 
 const context = {};
 vm.runInNewContext(
-  [grab("torontoDate"), grab("prominentDate"), grab("slateCurrent"),
-    "this.prominentDate = prominentDate; this.slateCurrent = slateCurrent;"
+  [grab("torontoDate"), grab("prominentDate"), grab("slateCurrent"), grab("staleNote"),
+    "this.prominentDate = prominentDate; this.slateCurrent = slateCurrent; this.staleNote = staleNote;"
   ].join("\n"),
   context
 );
@@ -52,8 +52,23 @@ const refresh = grab("refreshToday");
 if (refresh.indexOf('fetch("refresh.php"') < 0 || refresh.indexOf('method: "POST"') < 0) {
   throw new Error("stale page does not ask the server to publish");
 }
+if (refresh.indexOf("application/x-www-form-urlencoded") < 0 || refresh.indexOf('body: "refresh=1"') < 0) {
+  throw new Error("refresh POST has no form body");
+}
 if (refresh.indexOf('load("today.json")') < 0) throw new Error("refresh does not re-read today.json");
-if (app.indexOf("Loading today's data\\u2026") < 0) throw new Error("missing loading note");
-if (app.indexOf("Today's lists aren't available yet") < 0) throw new Error("missing unavailable note");
+assertEqual(context.staleNote(true, true, "no_games"), "Loading today's data\u2026", "loading wins");
+assertEqual(context.staleNote(false, false, "no_games"), "", "current slate has no note");
+assertEqual(
+  context.staleNote(false, true, "no_games"),
+  "No NHL games today, so there are no Tims lists.",
+  "off day"
+);
+assertEqual(
+  context.staleNote(false, true, ""),
+  "Today's lists aren't available yet",
+  "lists not posted"
+);
+if (app.indexOf("No NHL games today, so there are no Tims lists.") < 0) throw new Error("missing no-games note");
+if (refresh.indexOf('body.status === "no_games"') < 0) throw new Error("page ignores no_games");
 
 console.log("slate date ok");

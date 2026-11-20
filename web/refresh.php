@@ -98,6 +98,111 @@ function hockey_respond($status, $date)
     echo json_encode(array("status" => $status, "date" => $date));
 }
 
+function hockey_score_url($date)
+{
+    return "https://api-web.nhle.com/v1/score/" . $date;
+}
+
+function hockey_count_games($payload)
+{
+    if (!is_array($payload)) {
+        return null;
+    }
+    $games = isset($payload["games"]) && is_array($payload["games"]) ? $payload["games"] : array();
+    $skip = array(
+        "PPD" => 1,
+        "POSTPONED" => 1,
+        "CNCL" => 1,
+        "CANCELLED" => 1,
+        "CANCELED" => 1,
+        "SUSP" => 1,
+        "SUSPENDED" => 1,
+    );
+    $count = 0;
+    foreach ($games as $game) {
+        if (!is_array($game)) {
+            continue;
+        }
+        $state = strtoupper((string) (isset($game["gameState"]) ? $game["gameState"] : ""));
+        $schedule = strtoupper((string) (isset($game["gameScheduleState"]) ? $game["gameScheduleState"] : ""));
+        if (isset($skip[$state]) || isset($skip[$schedule])) {
+            continue;
+        }
+        $count++;
+    }
+    return $count;
+}
+
+function hockey_gap_status($gameCount)
+{
+    if ($gameCount === 0) {
+        return "no_games";
+    }
+    return "not_ready";
+}
+
+function hockey_cached_gap($cache, $toronto)
+{
+    if (!is_array($cache) || (isset($cache["date"]) ? (string) $cache["date"] : "") !== $toronto) {
+        return "not_ready";
+    }
+    $status = isset($cache["status"]) ? (string) $cache["status"] : "";
+    if ($status === "no_games" || $status === "not_ready") {
+        return $status;
+    }
+    return "not_ready";
+}
+
+function hockey_read_cache($path)
+{
+    if (!is_file($path)) {
+        return null;
+    }
+    $doc = json_decode((string) file_get_contents($path), true);
+    return is_array($doc) ? $doc : null;
+}
+
+function hockey_remember($logDir, $toronto, $status, $now)
+{
+    file_put_contents($logDir . "/page-refresh.at", (string) $now);
+    file_put_contents($logDir . "/page-refresh.json", json_encode(array(
+        "at" => $now,
+        "date" => $toronto,
+        "status" => $status,
+    )));
+}
+
+function hockey_fetch_score($date)
+{
+    if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $date)) {
+        return null;
+    }
+    $url = hockey_score_url($date);
+    $body = false;
+    if (function_exists("curl_init")) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        curl_setopt($ch, CURLOPT_USERAGENT, "hockey-refresh");
+        $body = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($body === false || $code < 200 || $code >= 300) {
+            return null;
+        }
+    } else {
+        $context = stream_context_create(array("http" => array("timeout" => 12)));
+        $body = @file_get_contents($url, false, $context);
+        if ($body === false) {
+            return null;
+        }
+    }
+    $doc = json_decode($body, true);
+    return is_array($doc) ? $doc : null;
+}
+
 function hockey_read_stamp($path)
 {
     if (!is_file($path)) {
@@ -186,11 +291,17 @@ function hockey_run_publish($root, $publish)
     return proc_close($proc);
 }
 
+function hockey_accepts_refresh($method, $refresh)
+{
+    return $method === "POST" && (string) $refresh === "1";
+}
+
 function hockey_refresh_main()
 {
     $method = isset($_SERVER["REQUEST_METHOD"]) ? $_SERVER["REQUEST_METHOD"] : "GET";
-    if ($method !== "POST") {
-        if (!headers_sent()) {
+    $posted = isset($_POST["refresh"]) ? (string) $_POST["refresh"] : "";
+    if (!hockey_accepts_refresh($method, $posted)) {
+        if ($method !== "POST" && !headers_sent()) {
             header("Allow: POST");
             http_response_code(405);
         }
@@ -243,11 +354,21 @@ function hockey_refresh_main()
     }
     $now = time();
     $stampPath = $logDir . "/page-refresh.at";
+    $cachePath = $logDir . "/page-refresh.json";
     $last = hockey_read_stamp($stampPath);
     if (hockey_refresh_decision($shown, $toronto, $last, $now) === "limited") {
+        $status = hockey_cached_gap(hockey_read_cache($cachePath), $toronto);
         flock($lock, LOCK_UN);
         fclose($lock);
-        hockey_respond("limited", $shown);
+        hockey_respond($status, $shown);
+        return;
+    }
+    $games = hockey_count_games(hockey_fetch_score($toronto));
+    if ($games === 0) {
+        hockey_remember($logDir, $toronto, "no_games", $now);
+        flock($lock, LOCK_UN);
+        fclose($lock);
+        hockey_respond("no_games", $shown);
         return;
     }
     file_put_contents($stampPath, (string) $now);
@@ -260,17 +381,19 @@ function hockey_refresh_main()
     if ($after === "") {
         $after = hockey_publish_date($publish);
     }
-    flock($lock, LOCK_UN);
-    fclose($lock);
     if ($after === $toronto) {
+        flock($lock, LOCK_UN);
+        fclose($lock);
         hockey_respond("updated", $after);
         return;
     }
-    if ($code === 75 || $code === 0) {
-        hockey_respond("not_ready", $after);
-        return;
+    $status = ($code === 75 || $code === 0) ? "not_ready" : "error";
+    if ($status === "not_ready") {
+        hockey_remember($logDir, $toronto, "not_ready", $now);
     }
-    hockey_respond("error", $after);
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    hockey_respond($status, $after);
 }
 
 if (!defined("HOCKEY_REFRESH_LIB")) {
