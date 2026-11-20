@@ -54,6 +54,7 @@ cp ~/tims-hockey/deploy/tims.env.example ~/tims-hockey/secrets/tims.env
 chmod 600 ~/tims-hockey/secrets/tims.env
 mkdir -p ~/public_html/tools/hockey/data
 cp ~/tims-hockey/web/index.html ~/tims-hockey/web/app.js ~/tims-hockey/web/style.css \
+   ~/tims-hockey/web/refresh.php \
    ~/public_html/tools/hockey/
 ```
 
@@ -233,3 +234,11 @@ query string (`?v=...`). After you change those files, run
 `python3 web/stamp_assets.py` so the next `cp -r web/.` deploy makes phones
 fetch the new copy. The host's site-root `.htaccess` is never touched;
 `web/.htaccess` only asks browsers not to cache the HTML shell.
+
+`web/refresh.php` is copied with the page. When `today.json` is not Toronto's
+date, the page POSTs to it. The script runs `job/run_daily.py` once, then
+rsyncs `publish/` the same way cron does. A lock file and a 10-minute stamp
+in `~/tims-hockey/logs/` (`page-refresh.lock`, `page-refresh.at`) keep page
+loads from calling Tims again. Credentials stay in `secrets/tims.env`. The
+script does not submit a pick. If the published date is already today, it
+does not call Tims.

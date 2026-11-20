@@ -40,7 +40,10 @@
     dayCache: {},
     dayLoads: {},
     catalog: [],
-    summaryDoc: null
+    summaryDoc: null,
+    todayLoading: false,
+    todayStale: false,
+    refreshTried: false
   };
   var lastPlayerButton = null;
 
@@ -582,6 +585,31 @@
     return d.toLocaleDateString("en-US", {
       weekday: "short", month: "short", day: "numeric", timeZone: "UTC"
     });
+  }
+
+  function prominentDate(iso) {
+    var parts = String(iso || "").slice(0, 10).split("-");
+    if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) return "";
+    var date = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+    if (isNaN(date.getTime())) return "";
+    try {
+      var text = new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC"
+      }).format(date);
+      return String(text).replace(/[\u00a0\u202f]/g, " ");
+    } catch (err) {
+      return "";
+    }
+  }
+
+  function slateCurrent(day, now) {
+    var iso = day && String(day.date || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+    return iso === torontoDate(now);
   }
 
   function pct(v) {
@@ -1842,10 +1870,23 @@
     );
   }
 
+  function renderSlateStatus(day) {
+    var label = prominentDate(day && day.date) || "Today";
+    var note = "";
+    if (state.todayLoading) note = "Loading today's data\u2026";
+    else if (state.todayStale) note = "Today's lists aren't available yet";
+    return h("div", {class: "slate-date"},
+      h("h2", {text: label}),
+      note ? h("p", {class: "slate-note", role: "status", text: note}) : null
+    );
+  }
+
   function renderToday() {
     var view = document.getElementById("view-today");
     clear(view);
     var day = state.today;
+    view.appendChild(renderSlateStatus(day));
+    if (state.todayLoading || state.todayStale) return;
     if (!day) {
       view.appendChild(h("section", {class: "card"},
         h("h2", {text: "No slate yet"}),
@@ -3114,13 +3155,38 @@
     state.past = null;
     state.pastDate = first ? first.date : null;
     if (state.backtest && state.view === "today") state.view = "season";
+    state.todayLoading = false;
+    state.todayStale = false;
+    if (!state.backtest && !slateCurrent(state.today)) state.todayLoading = true;
     show(state.view);
     if (state.pastDate) selectPast(state.pastDate);
+    if (state.todayLoading) refreshToday();
+  }
+
+  function refreshToday() {
+    if (state.backtest || state.refreshTried) return;
+    if (slateCurrent(state.today)) return;
+    state.refreshTried = true;
+    state.todayLoading = true;
+    state.todayStale = false;
+    if (state.view === "today") renderToday();
+    var token = loadToken;
+    fetch("refresh.php", {method: "POST", cache: "no-store", headers: {"Accept": "application/json"}})
+      .catch(function () { return null; })
+      .then(function () { return load("today.json").catch(function () { return state.today; }); })
+      .then(function (day) {
+        if (token !== loadToken) return;
+        state.today = day || null;
+        state.todayLoading = false;
+        state.todayStale = !slateCurrent(state.today);
+        if (state.view === "today") renderToday();
+      });
   }
 
   function loadBundle() {
     var token = ++loadToken;
     var backtest = state.backtest;
+    if (!backtest) state.refreshTried = false;
     var jobs = [];
     if (!backtest) jobs.push(load("today.json").catch(function () { return null; }));
     jobs.push(load("season.json").catch(function () { return null; }));

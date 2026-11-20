@@ -166,9 +166,10 @@ git pull
 rsync -a --delete --exclude '/seasons/' ~/tims-hockey/publish/ ~/public_html/tools/hockey/data/
 ```
 
-Copy `web/index.html`, `web/app.js`, and `web/style.css` into
-`~/public_html/tools/hockey/` when the page itself should change. The cron
-does not copy HTML.
+Copy `web/index.html`, `web/app.js`, `web/style.css`, and `web/refresh.php`
+into `~/public_html/tools/hockey/` when the page itself should change. The
+cron does not copy HTML. `refresh.php` runs the daily publish at most once
+every 10 minutes when the page sees a stale `today.json`.
 
 To add NHL start times to days already published, without changing picks
 or grades, run this on the host. It reads `today.json` and
