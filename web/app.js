@@ -1684,14 +1684,191 @@
     if (!day || !(day.groups || []).length) return null;
     var rule = submitRule();
     var clock = typeof now === "number" ? now : Date.now();
+
+    // T_first is the earliest start among today's three recommended picks.
+    // A later list is worth waiting for only when that list is strictly
+    // before T_first. The default list is 5:00 PM Toronto. A day may name
+    // several list_times ("HH:MM" or instants); then the latest one still
+    // before T_first is the one to name. The job locks a pick at game start
+    // and does not store this sentence.
+    function clockLabel(ms) {
+      if (ms == null || isNaN(ms)) return "";
+      var text = torontoGameTime(new Date(ms).toISOString());
+      return text ? text + " ET" : "";
+    }
+
+    function minutesOf(item) {
+      if (typeof item === "number" && item >= 0 && item < 24 * 60) return item;
+      if (typeof item !== "string") return null;
+      var hm = /^(\d{1,2}):(\d{2})$/.exec(item.replace(/^\s+|\s+$/g, ""));
+      if (hm) return Number(hm[1]) * 60 + Number(hm[2]);
+      var parsed = Date.parse(item);
+      if (isNaN(parsed)) return null;
+      return torontoMinutes(parsed);
+    }
+
+    function atMinutes(mins) {
+      var nowMins = torontoMinutes(clock);
+      if (nowMins == null || mins == null) return NaN;
+      return clock + (mins - nowMins) * 60000;
+    }
+
+    function listInstants() {
+      var raw = day.list_times;
+      var instants = [];
+      if (raw && raw.length > 1) {
+        raw.forEach(function (item) {
+          if (typeof item === "string" && item.indexOf("T") >= 0) {
+            var parsed = Date.parse(item);
+            if (!isNaN(parsed)) instants.push(parsed);
+            return;
+          }
+          var ms = atMinutes(minutesOf(item));
+          if (!isNaN(ms)) instants.push(ms);
+        });
+      }
+      if (instants.length > 1) return instants;
+      var five = atMinutes(rule.cutoffHour * 60 + rule.cutoffMinute);
+      return isNaN(five) ? [] : [five];
+    }
+
+    function latestListBefore(tFirst) {
+      if (tFirst == null) return null;
+      var best = null;
+      listInstants().forEach(function (ms) {
+        if (isNaN(ms) || ms <= clock || ms >= tFirst) return;
+        if (best == null || ms > best) best = ms;
+      });
+      return best;
+    }
+
+    function startOfPlayer(player, group) {
+      if (!player) return NaN;
+      var iso = startIso(player, group, day);
+      if (typeof iso === "number") return iso;
+      var ms = iso ? Date.parse(iso) : NaN;
+      return ms;
+    }
+
+    function groupFor(pick) {
+      var found = null;
+      (day.groups || []).forEach(function (group) {
+        if (pick && group.id === pick.groupId) found = group;
+      });
+      return found;
+    }
+
+    function startOfPick(pick) {
+      if (!pick) return NaN;
+      if (typeof pick.start === "number" && !isNaN(pick.start)) return pick.start;
+      if (typeof pick.start === "string" && pick.start) {
+        var direct = Date.parse(pick.start);
+        if (!isNaN(direct)) return direct;
+      }
+      var iso = startIso(pick, groupFor(pick), day);
+      if (typeof iso === "number") return iso;
+      var ms = iso ? Date.parse(iso) : NaN;
+      return ms;
+    }
+
+    function consider(best, ms) {
+      if (ms == null || isNaN(ms)) return best;
+      if (best == null || ms < best) return ms;
+      return best;
+    }
+
+    function firstStart() {
+      var best = null;
+      var usingMix = typeof mixApi === "function" && mixApi() && mixApi().selectionsAt && typeof state !== "undefined" && state;
+      if (usingMix) {
+        var rules = mixApi();
+        var methodId = state.method || "aggregate";
+        var picks = rules.selectionsAt(
+          day,
+          rules.configFor(methodId, state.mix, knownMethods()),
+          knownMethods(),
+          clock
+        ).picks || [];
+        picks.forEach(function (pick) { best = consider(best, startOfPick(pick)); });
+        return best;
+      }
+      (day.groups || []).forEach(function (group) {
+        var current = chosenTop(group, day, clock);
+        var early = chosenTop(group, day, 0);
+        if (current && current.player) best = consider(best, startOfPlayer(current.player, group));
+        if (early && early.player) best = consider(best, startOfPlayer(early.player, group));
+      });
+      return best;
+    }
+
+    function checkBack(chance, listMs) {
+      var when = clockLabel(listMs) || "5:00 PM ET";
+      return {
+        text: "Low-confidence slate (" + pct(chance) + " chance of at least one hit). Later lists have scored slightly better on average; check back at " + when + " to submit all three.",
+        tone: "low",
+        chance: chance,
+        footnote: rule.footnote,
+        listAt: listMs
+      };
+    }
+
+    function byDeadline(chance, tFirst) {
+      var when = clockLabel(tFirst);
+      return {
+        text: when ? "Submit now \u2014 first pick's game starts " + when : "Submit these three now",
+        tone: chance != null && chance >= rule.minChance ? "strong" : "now",
+        chance: chance,
+        footnote: rule.footnote,
+        deadline: tFirst
+      };
+    }
+
+    function strong(chance) {
+      return {
+        text: "Strong slate: submit these three now (" + pct(chance) + " chance of at least one hit)",
+        tone: "strong",
+        chance: chance,
+        footnote: rule.footnote
+      };
+    }
+
+    function lockedGame(tFirst, chance) {
+      var label = torontoGameTime(tFirst == null || isNaN(tFirst) ? "" : new Date(tFirst).toISOString());
+      var at = label ? " at " + label : "";
+      return {
+        text: "Daily picks locked" + at + " \u2014 first selected game started",
+        tone: "now",
+        chance: chance,
+        footnote: rule.footnote
+      };
+    }
+
+    var tFirst = firstStart();
+    var listAt = latestListBefore(tFirst);
+
     if (typeof mixApi === "function" && mixApi() && mixApi().dailyPlan && typeof state !== "undefined" && state) {
-      var rules = mixApi();
-      var methodId = state.method || "aggregate";
-      var plan = rules.dailyPlan(day, rules.configFor(methodId, state.mix, knownMethods()), knownMethods(), clock);
+      var rulesMix = mixApi();
+      var method = state.method || "aggregate";
+      var plan = rulesMix.dailyPlan(day, rulesMix.configFor(method, state.mix, knownMethods()), knownMethods(), clock);
       var when = "";
       if (plan.at != null && !isNaN(plan.at)) when = " at " + torontoGameTime(new Date(plan.at).toISOString());
       if (allGamesStarted(day, clock)) {
         return {text: "All games have started. The daily picks are locked.", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      if (plan.locked && plan.reason === "game") {
+        return {text: "Daily picks locked" + when + " \u2014 first selected game started", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      if (plan.locked && plan.reason === "playoffs") {
+        return {text: "Daily picks locked" + when + " \u2014 playoffs lock at the first list", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      if (playoffSlate(day)) {
+        return {text: "Submit these three now", tone: "now", chance: plan.chance, footnote: rule.footnote};
+      }
+      if (tFirst != null && tFirst <= clock) {
+        return lockedGame(tFirst, plan.chance);
+      }
+      if (tFirst != null && listAt == null) {
+        return byDeadline(plan.chance, tFirst);
       }
       if (plan.locked && plan.reason === "threshold") {
         return {
@@ -1701,22 +1878,13 @@
           footnote: rule.footnote
         };
       }
-      if (plan.locked && plan.reason === "playoffs") {
-        return {text: "Daily picks locked" + when + " \u2014 playoffs lock at the first list", tone: "now", chance: plan.chance, footnote: rule.footnote};
-      }
       if (plan.locked) {
         return {text: "Daily picks locked" + when + " \u2014 first selected game started", tone: "now", chance: plan.chance, footnote: rule.footnote};
       }
       var open = plan.chance;
+      if (open != null && open >= rule.minChance) return strong(open);
+      if (listAt != null) return checkBack(open, listAt);
       var mins = torontoMinutes(clock);
-      if (open != null && open >= rule.minChance) {
-        return {
-          text: "Strong slate: submit these three now (" + pct(open) + " chance of at least one hit)",
-          tone: "strong",
-          chance: open,
-          footnote: rule.footnote
-        };
-      }
       if (mins != null && mins >= rule.cutoffHour * 60 + rule.cutoffMinute) {
         return {
           text: "Low-confidence slate (" + pct(open) + " chance of at least one hit). Daily picks lock when the first selected game starts.",
@@ -1725,13 +1893,9 @@
           footnote: rule.footnote
         };
       }
-      return {
-        text: "Low-confidence slate (" + pct(open) + " chance of at least one hit). Later lists have scored slightly better on average; check back after 5 PM to submit all three.",
-        tone: "low",
-        chance: open,
-        footnote: rule.footnote
-      };
+      return checkBack(open, atMinutes(rule.cutoffHour * 60 + rule.cutoffMinute));
     }
+
     var soon = false;
     var thin = false;
     (day.groups || []).forEach(function (group) {
@@ -1742,24 +1906,18 @@
     var minutes = torontoMinutes(clock);
     var afterCutoff = minutes != null && minutes >= rule.cutoffHour * 60 + rule.cutoffMinute;
     var chance = slateChance(day, clock);
-    if (playoffSlate(day) || afterCutoff || soon || thin) {
+    if (playoffSlate(day)) {
+      return {text: "Submit these three now", tone: "now", chance: chance, footnote: rule.footnote};
+    }
+    if (tFirst != null && tFirst <= clock) return lockedGame(tFirst, chance);
+    if (tFirst != null && listAt == null) return byDeadline(chance, tFirst);
+    if (afterCutoff || soon || thin) {
       return {text: "Submit these three now", tone: "now", chance: chance, footnote: rule.footnote};
     }
     if (chance == null) return null;
-    if (chance >= rule.minChance) {
-      return {
-        text: "Strong slate: submit these three now (" + pct(chance) + " chance of at least one hit)",
-        tone: "strong",
-        chance: chance,
-        footnote: rule.footnote
-      };
-    }
-    return {
-      text: "Low-confidence slate (" + pct(chance) + " chance of at least one hit). Later lists have scored slightly better on average; check back after 5 PM to submit all three.",
-      tone: "low",
-      chance: chance,
-      footnote: rule.footnote
-    };
+    if (chance >= rule.minChance) return strong(chance);
+    if (listAt != null) return checkBack(chance, listAt);
+    return checkBack(chance, atMinutes(rule.cutoffHour * 60 + rule.cutoffMinute));
   }
 
   function renderSubmitBanner(day, now, attached) {
@@ -1796,11 +1954,24 @@
     return torontoGameTime(new Date(ms).toISOString());
   }
 
-  function lockText(plan) {
+  function lockText(plan, day, now) {
     if (!plan) return "";
     var when = formatWhen(plan.at);
     var clock = when ? " at " + when : "";
-    if (!plan.locked) return "Not locked yet. They can still change at the 5:00 PM list, or when the first selected game starts.";
+    if (!plan.locked) {
+      if (day && typeof now === "number") {
+        var advice = submitAdvice(day, now);
+        if (advice && advice.listAt != null) {
+          var label = torontoGameTime(new Date(advice.listAt).toISOString());
+          if (label) return "Not locked yet. They can still change at the " + label + " ET list, or when the first selected game starts.";
+        }
+        if (advice && advice.deadline != null && advice.deadline > now) {
+          var startLabel = torontoGameTime(new Date(advice.deadline).toISOString());
+          if (startLabel) return "Not locked yet. The first selected game starts at " + startLabel + " ET.";
+        }
+      }
+      return "Not locked yet. They can still change at the 5:00 PM ET list, or when the first selected game starts.";
+    }
     if (plan.reason === "threshold") return "Locked" + clock + " \u2014 submit threshold met";
     if (plan.reason === "playoffs") return "Locked" + clock + " \u2014 playoffs lock at the first list";
     return "Locked" + clock + " \u2014 first selected game started";
@@ -1852,7 +2023,7 @@
         h("h2", {text: "Daily picks"}),
         h("p", {class: "daily-note", text: "All games have started."}),
         pickRow(plan ? plan.picks : [], selected, day),
-        h("p", {class: "daily-note", text: lockText(plan)}),
+        h("p", {class: "daily-note", text: lockText(plan, day, now)}),
         renderSubmitBanner(day, now, true)
       );
     }
@@ -1867,7 +2038,7 @@
         h("section", {class: "card daily-picks"},
           h("h2", {text: "Daily picks"}),
           pickRow(plan.picks, selected, day),
-          h("p", {class: "daily-note", text: lockText(plan)})
+          h("p", {class: "daily-note", text: lockText(plan, day, now)})
         )
       );
     }
